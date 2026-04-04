@@ -149,7 +149,7 @@ app.post("/teacher/results", authMiddleware, requireRole("teacher"), (req, res) 
         return res.json({message: "All fields required"});
     }
     const examQuery = 'INSERT INTO exams (offering_id, exam_name, exam_date, max_marks) VALUES (?,?,?,?)';
-    // const offering_id = 1
+    const offering_id = 2
 
     db.query(examQuery, [offering_id, exam_name, exam_date, max_marks], (err, result)=>{
         if(err){
@@ -164,15 +164,19 @@ app.post("/teacher/results", authMiddleware, requireRole("teacher"), (req, res) 
                 console.error(err2);
                 return res.json({ message: "Error saving result"});
             }
+            res.json({message: "Result added successfully"});
         });
     });
 });
 app.post("/admin/register", authMiddleware, requireRole("admin"), async(req, res) => {
     console.log("BODY:", req.body);
-    const { email, password, full_name, prn, class_id, roll_no, admission_year, role } = req.body;
-    if (!email || !password || !full_name || !prn || class_id == null || roll_no == null || admission_year == null) {
+
+    const { email, password, full_name, prn, class_id, roll_no, admission_year, role, department } = req.body;
+
+    if (!email || !password || !full_name || !role) {
         return res.json({ message: "All fields required" });
     }
+
     try{
         const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -180,6 +184,7 @@ app.post("/admin/register", authMiddleware, requireRole("admin"), async(req, res
             if(err){
                 return res.json({message: "Transaction start failed"});
             }
+
         const accountQuery = 'INSERT INTO accounts (email, password_hash) VALUES (?, ?)';
         db.query(accountQuery, [email, hashedPassword], (err, result) =>{
             if(err){
@@ -188,16 +193,19 @@ app.post("/admin/register", authMiddleware, requireRole("admin"), async(req, res
                     return res.json({ message : "Error creating account"});
             });
             }
-            const accountId = result.insertId;
-            const getRoleQuery = "SELECT role_id FROM access_roles WHERE role_name = 'student'"
 
-            db.query(getRoleQuery, (errRole, roleResult)=>{
+            const accountId = result.insertId;
+
+            const getRoleQuery = "SELECT role_id FROM access_roles WHERE role_name = ?";
+
+            db.query(getRoleQuery, [role], (errRole, roleResult)=>{
                 if (errRole || roleResult.length ===0){
                     console.error(errRole);
                     return db.rollback(() => {
                         return res.json({message: "Role fetch failed"});
                     });
                 }
+
                 const roleID = roleResult[0].role_id;
 
                 const mapQuery = "INSERT INTO account_role_map (account_id, role_id) VALUES (?,?)";
@@ -208,30 +216,84 @@ app.post("/admin/register", authMiddleware, requireRole("admin"), async(req, res
                             return res.json({message: "Role assignment failed"});
                         });
                     }
-                    const studentQuery = 'INSERT INTO student_profiles (account_id, prn, full_name, class_id, roll_no, admission_year) VALUES (?,?,?,?,?,?)';
-            db.query(studentQuery,  [accountId, prn, full_name, class_id, roll_no, admission_year], (err2) => {
-                if(err2){
-                    console.error(err2);
-                    return db.rollback(() => {
-                        return res.json({ message: "Error creating student profile"})
-                    });
-                }
-            db.commit((errCommit) => {
-                if (errCommit){
-                    return db.rollback(() => {
-                        return res.json({message: "Commit failed"});
-                    });
-                }
-            return res.json({
-                message: "Student created successfully"
+
+                    if (role === "student") {
+
+                        if (!prn || class_id == null || roll_no == null || admission_year == null) {
+                            return db.rollback(() => {
+                                return res.json({ message: "Student fields missing" });
+                            });
+                        }
+
+                        const studentQuery = 'INSERT INTO student_profiles (account_id, prn, full_name, class_id, roll_no, admission_year) VALUES (?,?,?,?,?,?)';
+
+                        db.query(studentQuery,  [accountId, prn, full_name, class_id, roll_no, admission_year], (err2) => {
+                            if(err2){
+                                console.error(err2);
+                                return db.rollback(() => {
+                                    return res.json({ message: "Error creating student profile"})
+                                });
+                            }
+
+                            db.commit((errCommit) => {
+                                if (errCommit){
+                                    return db.rollback(() => {
+                                        return res.json({message: "Commit failed"});
+                                    });
+                                }
+
+                                return res.json({
+                                    message: "Student created successfully"
+                                });
+                            });
+                        });
+
+                    } 
+                    
+                    else if (role === "teacher") {
+                        if (!department) {
+                            return db.rollback(() => {
+                                return res.json({ message: "Department required for teacher" });
+                            });
+                        }
+                        const teacherQuery = `
+                            INSERT INTO teacher_profiles (account_id, full_name, department)
+                            VALUES (?, ?, ?)
+                        `;
+
+                        db.query(teacherQuery, [accountId, full_name, department], (errTeacher) => {
+                            if (errTeacher) {
+                                console.error(errTeacher);
+                                return db.rollback(() => {
+                                    return res.json({ message: "Error creating teacher profile" });
+                                });
+                            }
+
+                            db.commit((errCommit) => {
+                                if (errCommit){
+                                    return db.rollback(() => {
+                                        return res.json({message: "Commit failed"});
+                                    });
+                                }
+
+                                return res.json({
+                                    message: "Teacher created successfully"
+                                });
+                            });
+                        });
+
+                    } 
+                    
+                    else {
+                        return db.rollback(() => {
+                            return res.json({ message: "Invalid role" });
+                        });
+                    }
+
                 });
             });
-            
-        });
-        });
         });
     });
-});
     }
     catch (error){
         console.error(error);
