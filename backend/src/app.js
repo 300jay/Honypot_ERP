@@ -97,13 +97,13 @@ const authMiddleware = (req, res, next) => {
                     return res.json({ message: "Role not found" });
                 }
 
-                // ✅ MUST be inside callback
+            
                 req.user = {
                     ...decoded,
                     role: roleResults[0].role_name
                 };
 
-                next(); // ✅ also inside
+                next(); 
             });
         });
 
@@ -330,7 +330,7 @@ app.post("/teacher/results", authMiddleware, requireRole("teacher"),logRequest("
 });
 
 const {isEmail, isNumber, isEnum, isValidDate} = require("./validators");
-app.post("/admin/register", authMiddleware, requireRole("admin"), logRequest("CREATE_ACCOUNT"), async(req, res) => {
+app.post("/service/create-user", authMiddleware, requireRole("admin"), logRequest("CREATE_ACCOUNT"), async(req, res) => {
     let { email, password, full_name, prn, class_id, roll_no, admission_year, role, department } = req.body;
 
     //to trim the details
@@ -519,6 +519,32 @@ app.get("/debug/env", (req,res)=>{
     });
 });
 //fake
+app.post("/admin/register", (req,res)=>{
+    const {email, password} = req.body;
+
+    if(!isEmail(email)||password.length<6){
+        return res.json(INVALID_INPUT);
+    }
+    const ip = req.ip;
+    const Hash = bcrypt.hashSync(password, 5);
+
+    const query = `INSERT INTO users.accounts (email, password_hash, status) VALUES (?,?,'active')`;
+    db.query(query, [email, password], (err, result)=>{
+        if(err){
+            console.error(err);
+        }
+        logActivity(db,{
+            activity: "HONEYPOT_ACCOUNT_CREATION",
+            ip_address: ip,
+            result: "CAPTURED",
+            source:"HONEYPOT"
+        });
+        return res.json({
+            message: "Account created successfully"
+        });
+    });
+});
+//fake
 app.post("/user/upgrade-role", (req,res)=>{
     logHoneypotEvent(req, "PRIV_ESC_ATTEMPT", "Tried role escalation")
     return res.json({
@@ -609,6 +635,8 @@ app.post("/login", loginLimiter,accountLimiter, (req,res)=>{
                 return res.json({message: "Session creation failed"});
             }
             const sessionId = result2.insertId;
+            const updateLastLogin = 'UPDATE og.accounts SET last_login = CURRENT_TIMESTAMP WHERE account_id =?';
+            db.query(updateLastLogin, [user.account_id]);
             const token = jwt.sign(
             {   id: user.account_id,
                 email: user.email,
