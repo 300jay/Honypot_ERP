@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Results</title>
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body data-theme="dark" data-role="admin">
+    <div class="bg-orb orb-1"></div><div class="bg-orb orb-2"></div><div class="bg-grid"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-mark" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border: none;"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="brand-text"><h1>CampusFlow</h1><p>Role-based smart dashboard</p></div>
+            </div>
+            <nav class="nav">
+                <a href="teacher-dashboard.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">▣</span><span class="nav-body"><span class="nav-label">Dashboard</span><span class="nav-sub">Overview</span></span></a>
+                <a href="teacher-attendance.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">✓</span><span class="nav-body"><span class="nav-label">Attendance</span><span class="nav-sub">Update class</span></span></a>
+                <a href="teacher-results.html" class="nav-item active" style="text-decoration: none;"><span class="nav-ico">◉</span><span class="nav-body"><span class="nav-label">Results</span><span class="nav-sub">Edit marks</span></span></a>
+                <a href="teacher-timetable.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">⌗</span><span class="nav-body"><span class="nav-label">Timetable</span><span class="nav-sub">Build schedule</span></span></a>
+                <a href="teacher-notifications.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">☰</span><span class="nav-body"><span class="nav-label">Notifications</span><span class="nav-sub">Push updates</span></span></a>
+                <a href="teacher-tickets.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">✉</span><span class="nav-body"><span class="nav-label">Tickets</span><span class="nav-sub">Raise support</span></span></a>
+                <a href="teacher-profile.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">👤</span><span class="nav-body"><span class="nav-label">Profile</span><span class="nav-sub">My details</span></span></a>
+            </nav>
+        </aside>
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-btn mobile-btn" id="mobileMenuBtn">☰</button>
+                    <div><p class="eyebrow">Workspace</p><h2>TEACHER</h2></div>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="themeBtn" title="Toggle theme">☾</button>
+                </div>
+            </header>
+            <section class="toolbar"><div><div class="hint">Viewing <strong>Results</strong> · built for teacher</div></div></section>
+            <section class="content" id="content">
+                <section class="panel">
+                    <div class="panel-head">
+                        <div><h3 class="panel-title">Result Editing</h3><p class="panel-sub">Edit marks directly. Grades update automatically.</p></div>
+                    </div>
+                    
+                    <div class="form-grid" style="margin-bottom: 16px; max-width: 300px;">
+                        <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Select Class</label>
+                        <select class="select" onchange="showToast('Class Loaded', 'Displaying marks for selected class.')">
+                            <option>CS201 - Data Structures (Div A)</option>
+                            <option>CS201 - Data Structures (Div B)</option>
+                            <option>CS305 - Database Management</option>
+                        </select>
+                    </div>
+
+                    <div class="action-row" style="margin-bottom: 16px;">
+                        <button class="primary-btn" onclick="showToast('Results saved', 'Result edits are ready to publish.')">Save Marks</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Student</th><th>Marks (Out of 100)</th><th>Grade</th></tr></thead>
+                            <tbody>
+                                <tr><td>Aarav</td><td contenteditable="true" class="editable">91</td><td><span class="badge good">O</span></td></tr>
+                                <tr><td>Isha</td><td contenteditable="true" class="editable">88</td><td><span class="badge good">A+</span></td></tr>
+                                <tr><td>Kabir</td><td contenteditable="true" class="editable">76</td><td><span class="badge good">A</span></td></tr>
+                                <tr><td>Riya</td><td contenteditable="true" class="editable">95</td><td><span class="badge good">O</span></td></tr>
+                                <tr><td>Meera</td><td contenteditable="true" class="editable">84</td><td><span class="badge good">A+</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+    <div id="modalRoot"></div><div id="toastRoot"></div>
+    <script src="teacher-scripts.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const editableCells = document.querySelectorAll(".editable");
+
+            editableCells.forEach(cell => {
+                // Listen to every key typed into the marks column
+                cell.addEventListener("input", function() {
+                    let marksText = this.textContent.trim();
+                    let marks = parseInt(marksText, 10);
+                    let gradeSpan = this.nextElementSibling.querySelector(".badge");
+
+                    // Handle empty or invalid inputs gracefully
+                    if (isNaN(marks)) {
+                        gradeSpan.textContent = "-";
+                        gradeSpan.className = "badge neutral";
+                        return;
+                    }
+
+                    // Cap marks between 0 and 100
+                    if (marks < 0) marks = 0;
+                    if (marks > 100) marks = 100;
+
+                    let grade = "";
+                    let badgeClass = "";
+
+                    // Grading Logic
+                    if (marks >= 90) { 
+                        grade = "O"; 
+                        badgeClass = "badge good"; 
+                    } else if (marks >= 80) { 
+                        grade = "A+"; 
+                        badgeClass = "badge good"; 
+                    } else if (marks >= 70) { 
+                        grade = "A"; 
+                        badgeClass = "badge good"; 
+                    } else if (marks >= 60) { 
+                        grade = "B+"; 
+                        badgeClass = "badge warn"; 
+                    } else if (marks >= 50) { 
+                        grade = "B"; 
+                        badgeClass = "badge warn"; 
+                    } else if (marks >= 40) { 
+                        grade = "C"; 
+                        badgeClass = "badge warn"; 
+                    } else { 
+                        grade = "F"; 
+                        badgeClass = "badge bad"; 
+                    }
+
+                    // Update the DOM
+                    gradeSpan.textContent = grade;
+                    gradeSpan.className = badgeClass;
+                });
+
+                // Prevent users from typing letters (only allow numbers)
+                cell.addEventListener("keypress", function(e) {
+                    if (isNaN(String.fromCharCode(e.which))) {
+                        e.preventDefault();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

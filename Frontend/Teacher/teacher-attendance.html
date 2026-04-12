@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Attendance</title>
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body data-theme="dark" data-role="admin">
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-grid"></div>
+
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-mark" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border: none;">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>CampusFlow</h1>
+                    <p>Role-based smart dashboard</p>
+                </div>
+            </div>
+
+            <nav class="nav">
+                <a href="teacher-dashboard.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">▣</span><span class="nav-body"><span class="nav-label">Dashboard</span><span class="nav-sub">Overview</span></span>
+                </a>
+                <a href="teacher-attendance.html" class="nav-item active" style="text-decoration: none;">
+                    <span class="nav-ico">✓</span><span class="nav-body"><span class="nav-label">Attendance</span><span class="nav-sub">Update class</span></span>
+                </a>
+                <a href="teacher-results.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">◉</span><span class="nav-body"><span class="nav-label">Results</span><span class="nav-sub">Edit marks</span></span>
+                </a>
+                <a href="teacher-timetable.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">⌗</span><span class="nav-body"><span class="nav-label">Timetable</span><span class="nav-sub">Build schedule</span></span>
+                </a>
+                <a href="teacher-notifications.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">☰</span><span class="nav-body"><span class="nav-label">Notifications</span><span class="nav-sub">Push updates</span></span>
+                </a>
+                <a href="teacher-tickets.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">✉</span><span class="nav-body"><span class="nav-label">Tickets</span><span class="nav-sub">Raise support</span></span>
+                </a>
+                <a href="teacher-profile.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">👤</span><span class="nav-body"><span class="nav-label">Profile</span><span class="nav-sub">My details</span></span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-btn mobile-btn" id="mobileMenuBtn">☰</button>
+                    <div>
+                        <p class="eyebrow">Workspace</p>
+                        <h2>TEACHER</h2>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="themeBtn" title="Toggle theme">☾</button>
+                </div>
+            </header>
+
+            <section class="toolbar">
+                <div><div class="hint">Viewing <strong>Attendance</strong> · built for teacher</div></div>
+            </section>
+
+            <section class="content" id="content">
+                
+                <section class="panel" style="margin-bottom: 18px;">
+                    <div class="panel-head">
+                        <div>
+                            <h3 class="panel-title">Select Session</h3>
+                            <p class="panel-sub">Choose the class and date to mark attendance.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: end;">
+                        <div>
+                            <label style="color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; display: block; font-weight: 600; text-transform: uppercase;">Class / Subject</label>
+                            <select class="select">
+                                <option>CS201 - Data Structures (Div A)</option>
+                                <option>CS201 - Data Structures (Div B)</option>
+                                <option>CS305 - Database Management</option>
+                                <option>CS410 - Artificial Intelligence</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; display: block; font-weight: 600; text-transform: uppercase;">Date</label>
+                            <input type="date" class="input" id="attendanceDate" />
+                        </div>
+                        <div>
+                            <button class="primary-btn" style="width: 100%; justify-content: center;" onclick="showToast('Class Loaded', 'Student roster fetched successfully.')">Load Roster</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-head" style="align-items: center;">
+                        <div>
+                            <h3 class="panel-title">Attendance Register</h3>
+                            <p class="panel-sub">Mark students present or absent for the selected session.</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="secondary-btn" onclick="markAll('Present')">Mark All Present</button>
+                            <button class="secondary-btn" onclick="markAll('Absent')">Mark All Absent</button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Roll No</th>
+                                    <th>Student Name</th>
+                                    <th style="width: 180px;">Status</th>
+                                    <th>Remarks (Optional)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>101</td>
+                                    <td><strong>Aarav Sharma</strong></td>
+                                    <td>
+                                        <select class="select status-select">
+                                            <option value="Present" selected>Present</option>
+                                            <option value="Absent">Absent</option>
+                                            <option value="Late">Late</option>
+                                        </select>
+                                    </td>
+                                    <td><input type="text" class="input" placeholder="Notes..." style="padding: 6px 12px; font-size: 0.85rem;" /></td>
+                                </tr>
+                                <tr>
+                                    <td>102</td>
+                                    <td><strong>Isha Patel</strong></td>
+                                    <td>
+                                        <select class="select status-select">
+                                            <option value="Present" selected>Present</option>
+                                            <option value="Absent">Absent</option>
+                                            <option value="Late">Late</option>
+                                        </select>
+                                    </td>
+                                    <td><input type="text" class="input" placeholder="Notes..." style="padding: 6px 12px; font-size: 0.85rem;" /></td>
+                                </tr>
+                                <tr>
+                                    <td>103</td>
+                                    <td><strong>Kabir Singh</strong></td>
+                                    <td>
+                                        <select class="select status-select">
+                                            <option value="Present" selected>Present</option>
+                                            <option value="Absent">Absent</option>
+                                            <option value="Late">Late</option>
+                                        </select>
+                                    </td>
+                                    <td><input type="text" class="input" placeholder="Notes..." style="padding: 6px 12px; font-size: 0.85rem;" /></td>
+                                </tr>
+                                <tr>
+                                    <td>104</td>
+                                    <td><strong>Riya Desai</strong></td>
+                                    <td>
+                                        <select class="select status-select">
+                                            <option value="Present" selected>Present</option>
+                                            <option value="Absent">Absent</option>
+                                            <option value="Late">Late</option>
+                                        </select>
+                                    </td>
+                                    <td><input type="text" class="input" placeholder="Notes..." style="padding: 6px 12px; font-size: 0.85rem;" /></td>
+                                </tr>
+                                <tr>
+                                    <td>105</td>
+                                    <td><strong>Meera Reddy</strong></td>
+                                    <td>
+                                        <select class="select status-select">
+                                            <option value="Present" selected>Present</option>
+                                            <option value="Absent">Absent</option>
+                                            <option value="Late">Late</option>
+                                        </select>
+                                    </td>
+                                    <td><input type="text" class="input" placeholder="Notes..." style="padding: 6px 12px; font-size: 0.85rem;" /></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="action-row" style="margin-top: 18px; border-top: 1px solid var(--border); padding-top: 18px; justify-content: space-between;">
+                        <span class="badge neutral" style="font-size: 0.9rem; padding: 6px 12px;">Total Students: 5</span>
+                        <button class="primary-btn" onclick="showToast('Success', 'Attendance records have been securely saved.')">Save Attendance</button>
+                    </div>
+                </section>
+
+            </section>
+        </main>
+    </div>
+
+    <div id="modalRoot"></div>  
+    <div id="toastRoot"></div>
+    
+    <script>
+        // --- Attendance Logic ---
+        // Auto-fill today's date in the date picker
+        document.addEventListener("DOMContentLoaded", () => {
+            const dateInput = document.getElementById('attendanceDate');
+            if (dateInput) {
+                dateInput.valueAsDate = new Date();
+            }
+
+            // Initialize select colors
+            document.querySelectorAll('.status-select').forEach(select => {
+                select.addEventListener('change', (e) => updateSelectStyle(e.target));
+                updateSelectStyle(select);
+            });
+        });
+
+        // Function to dynamically style the select dropdown based on status
+        function updateSelectStyle(select) {
+            if (select.value === 'Present') {
+                select.style.color = '#86efac'; // Green
+                select.style.borderColor = 'rgba(34,197,94,0.3)';
+                select.style.backgroundColor = 'rgba(34,197,94,0.05)';
+            } else if (select.value === 'Absent') {
+                select.style.color = '#fca5a5'; // Red
+                select.style.borderColor = 'rgba(239,68,68,0.3)';
+                select.style.backgroundColor = 'rgba(239,68,68,0.05)';
+            } else if (select.value === 'Late') {
+                select.style.color = '#fcd34d'; // Yellow/Orange
+                select.style.borderColor = 'rgba(245,158,11,0.3)';
+                select.style.backgroundColor = 'rgba(245,158,11,0.05)';
+            } else {
+                select.style.color = '';
+                select.style.borderColor = '';
+                select.style.backgroundColor = '';
+            }
+        }
+
+        // Function to mark all students at once
+        function markAll(status) {
+            document.querySelectorAll('.status-select').forEach(select => {
+                select.value = status;
+                updateSelectStyle(select);
+            });
+            showToast('Batch Applied', `All students marked as ${status}.`);
+        }
+
+        // --- Modal System ---
+        function openModal(type) {
+            const modalRoot = document.getElementById("modalRoot");
+            if (!modalRoot) return;
+
+            let title = "", body = "", action = "";
+
+            if (type === "ticket") {
+                title = "Raise Ticket";
+                body = `
+                    <div class="form-grid">
+                        <input class="input" placeholder="Subject" />
+                        <select class="select">
+                            <option>Technical Issue</option>
+                            <option>Attendance Problem</option>
+                            <option>Result Change</option>
+                            <option>Timetable Update</option>
+                        </select>
+                        <textarea class="textarea" placeholder="Describe the issue..."></textarea>
+                    </div>
+                `;
+                action = "Submit Ticket";
+            } else if (type === "notification") {
+                title = "Compose Notification";
+                body = `
+                    <div class="form-grid">
+                        <input class="input" placeholder="Announcement title" />
+                        <textarea class="textarea" placeholder="Message for students..."></textarea>
+                        <select class="select">
+                            <option>Send to all classes</option>
+                            <option>Send to Class A</option>
+                            <option>Send to Class B</option>
+                        </select>
+                    </div>
+                `;
+                action = "Send Notice";
+            }
+
+            modalRoot.innerHTML = `
+                <div class="modal-backdrop" id="modalBackdrop">
+                    <div class="modal">
+                        <div class="modal-head">
+                            <h3>${title}</h3>
+                            <button class="icon-btn" onclick="closeModal()">✕</button>
+                        </div>
+                        <div class="modal-body">${body}</div>
+                        <div class="modal-foot">
+                            <button class="secondary-btn" onclick="closeModal()">Cancel</button>
+                            <button class="primary-btn" onclick="submitModal('${action}')">${action}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById("modalBackdrop").addEventListener("click", (e) => {
+                if (e.target.id === "modalBackdrop") closeModal();
+            });
+        }
+
+        function closeModal() {
+            const modalRoot = document.getElementById("modalRoot");
+            if (modalRoot) modalRoot.innerHTML = "";
+        }
+
+        function submitModal(actionName) {
+            closeModal();
+            showToast(actionName, `${actionName} triggered successfully.`);
+        }
+
+        // --- Toast Notifications ---
+        function showToast(title, message) {
+            const toastRoot = document.getElementById("toastRoot");
+            if (!toastRoot) return;
+            const toast = document.createElement("div");
+            toast.className = "toast";
+            toast.innerHTML = `<strong>${title}</strong><p>${message}</p>`;
+            toastRoot.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateX(16px)";
+            }, 2600);
+            setTimeout(() => toast.remove(), 3100);
+        }
+
+        // --- Theme Toggle ---
+        document.getElementById("themeBtn")?.addEventListener("click", () => {
+            let theme = document.body.dataset.theme === "dark" ? "light" : "dark";
+            document.body.dataset.theme = theme;
+            document.getElementById("themeBtn").textContent = theme === "dark" ? "☾" : "☀";
+        });
+
+        // --- Mobile Hamburger Menu ---
+        document.getElementById("mobileMenuBtn")?.addEventListener("click", () => {
+            document.body.classList.toggle("sidebar-open");
+        });
+
+        // --- Auto-Highlight Active Navigation Link ---
+        document.addEventListener("DOMContentLoaded", () => {
+            let currentPage = window.location.pathname.split('/').pop();
+            if (currentPage === "") currentPage = "teacher-dashboard.html"; 
+
+            document.querySelectorAll(".nav .nav-item").forEach(link => {
+                link.classList.remove("active");
+                if (link.getAttribute("href") === currentPage) {
+                    link.classList.add("active");
+                }
+            });
+        });
+    </script>
+</body>
+</html>

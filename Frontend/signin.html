@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In</title>
+    <link rel="stylesheet" href="./style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        .auth-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+        }
+        .auth-panel {
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+            border-radius: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        .auth-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+        .auth-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .auth-header h2 {
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+        }
+        .auth-header p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .auth-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            margin-bottom: 20px;
+        }
+        .checkbox-label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body data-role="admin" data-theme="dark">
+
+    <button class="icon-btn" id="themeBtn" title="Toggle Theme" style="position: absolute; top: 24px; right: 24px; z-index: 50;">
+        <i class="fa-solid fa-sun"></i>
+    </button>
+
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+
+    <div class="auth-wrapper">
+        <div class="panel auth-panel">
+            
+            <div class="brand auth-brand">
+                <div class="brand-mark" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border: none; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 1.2rem;">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div class="brand-text">
+                    <h1 style="font-size: 1.4rem; margin: 0;">CampusFlow</h1>
+                </div>
+            </div>
+
+            <div class="auth-header">
+                <h2>Welcome back</h2>
+                <p>Please enter your details to sign in.</p>
+            </div>
+
+            <form class="form-grid" onsubmit="event.preventDefault(); window.location.href='dashboard.html';">
+                <div style="display: grid; gap: 16px;">
+                    <input type="email" class="input" placeholder="Email address" required>
+                    <input type="password" class="input" placeholder="Password" required>
+                </div>
+                
+                <div class="auth-actions">
+                    <label class="checkbox-label">
+                        <input type="checkbox" style="accent-color: var(--accent);"> Remember me
+                    </label>
+                    <a href="#" style="color: var(--accent); font-size: 0.85rem; text-decoration: none; font-weight: 600;">Forgot password?</a>
+                </div>
+
+                <button class="primary-btn" type="submit" style="width: 100%; justify-content: center; padding: 12px; font-size: 1rem;">Sign In</button>
+            </form>
+
+        </div>
+    </div>
+
+    <script>
+        const themeBtn = document.getElementById('themeBtn');
+        
+        // Match the icon to the initial theme
+        if (document.body.getAttribute('data-theme') === 'dark') {
+            themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+        } else {
+            themeBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+        }
+
+        themeBtn.addEventListener('click', () => {
+            const currentTheme = document.body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            document.body.setAttribute('data-theme', newTheme);
+            
+            themeBtn.innerHTML = newTheme === 'dark' 
+                ? '<i class="fa-solid fa-sun"></i>' 
+                : '<i class="fa-solid fa-moon"></i>';
+        });
+    </script>
+</body>
+</html>

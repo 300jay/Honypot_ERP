@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Dashboard</title>
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body data-theme="dark" data-role="admin">
+    <div class="bg-orb orb-1"></div><div class="bg-orb orb-2"></div><div class="bg-grid"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-mark"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="brand-text"><h1>CampusFlow</h1><p>Role-based smart dashboard</p></div>
+            </div>
+            <nav class="nav">
+                <a href="student-dashboard.html" class="nav-item active" style="text-decoration: none;"><span class="nav-ico">▣</span><span class="nav-body"><span class="nav-label">Dashboard</span><span class="nav-sub">Overview</span></span></a>
+                <a href="student-attendance.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">✓</span><span class="nav-body"><span class="nav-label">Attendance</span><span class="nav-sub">View progress</span></span></a>
+                <a href="student-results.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">◉</span><span class="nav-body"><span class="nav-label">Results</span><span class="nav-sub">View marks</span></span></a>
+                <a href="student-timetable.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">⌗</span><span class="nav-body"><span class="nav-label">Timetable</span><span class="nav-sub">View schedule</span></span></a>
+                <a href="student-notifications.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">☰</span><span class="nav-body"><span class="nav-label">Notifications</span><span class="nav-sub">Announcements</span></span></a>
+                <a href="student-tickets.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">✉</span><span class="nav-body"><span class="nav-label">Tickets</span><span class="nav-sub">Raise support</span></span></a>
+                <a href="student-profile.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">👤</span><span class="nav-body"><span class="nav-label">Profile</span><span class="nav-sub">My details</span></span></a>
+            </nav>
+        </aside>
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-btn mobile-btn" id="mobileMenuBtn">☰</button>
+                    <div><p class="eyebrow">Workspace</p><h2>STUDENT</h2></div>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="themeBtn" title="Toggle theme">☾</button>
+                </div>
+            </header>
+            <section class="toolbar"><div><div class="hint">Viewing <strong>Dashboard</strong> · built for student</div></div></section>
+            <section class="content" id="content">
+                <div class="grid-4" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">📊</div><div><p class="stat-label">Attendance</p><h3 class="stat-value" data-target="85">85%</h3></div></div></div><div class="stat-foot">This semester</div></article>
+                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">📈</div><div><p class="stat-label">Average</p><h3 class="stat-value" data-target="88">88</h3></div></div></div><div class="stat-foot">Current score</div></article>
+                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">🗓</div><div><p class="stat-label">Classes Today</p><h3 class="stat-value" data-target="4">4</h3></div></div></div><div class="stat-foot">Upcoming</div></article>
+                </div>
+                <div class="grid-2" style="margin-top: 18px;">
+                    <section class="panel">
+                        <div class="panel-head"><div><h3 class="panel-title">Progress Overview</h3><p class="panel-sub">A clean glance at student performance.</p></div></div>
+                        <div class="ring" style="--p:85"><div class="ring-content"><strong>85%</strong><span>Attendance</span></div></div>
+                        <div style="height:18px"></div>
+                        <div style="margin-bottom:12px"><div class="panel-sub" style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Attendance</span><span>85%</span></div><div class="progress"><span style="width:85%"></span></div></div>
+                        <div style="margin-bottom:12px"><div class="panel-sub" style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Result Avg</span><span>88%</span></div><div class="progress"><span style="width:88%"></span></div></div>
+                    </section>
+                    <section class="panel">
+                        <div class="panel-head"><div><h3 class="panel-title">Upcoming Classes</h3><p class="panel-sub">Today's schedule preview.</p></div></div>
+                        <div class="list">
+                            <div class="list-item"><div><strong>Math</strong><p>09:00 AM — Room 12</p></div><span class="badge info">Soon</span></div>
+                            <div class="list-item"><div><strong>Science</strong><p>11:00 AM — Lab 3</p></div><span class="badge info">Soon</span></div>
+                            <div class="list-item"><div><strong>DBMS</strong><p>01:00 PM — Hall A</p></div><span class="badge warn">Later</span></div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div id="modalRoot"></div><div id="toastRoot"></div>
+    <script src="student-scripts.js"></script>
+</body>
+</html>

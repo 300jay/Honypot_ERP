@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Users - CampusFlow</title>
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body data-theme="dark" data-role="admin">
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-grid"></div>
+
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-mark"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="brand-text">
+                    <h1>CampusFlow</h1>
+                    <p>Role-based smart dashboard</p>
+                </div>
+            </div>
+
+            <nav class="nav">
+                <a href="dashboard.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">▣</span>
+                    <span class="nav-body">
+                        <span class="nav-label">Dashboard</span>
+                        <span class="nav-sub">Overview</span>
+                    </span>
+                </a>
+                <a href="users.html" class="nav-item active" style="text-decoration: none;">
+                    <span class="nav-ico">◫</span>
+                    <span class="nav-body">
+                        <span class="nav-label">Users</span>
+                        <span class="nav-sub">Register & update</span>
+                    </span>
+                </a>
+                <a href="tickets.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">✉</span>
+                    <span class="nav-body">
+                        <span class="nav-label">Tickets</span>
+                        <span class="nav-sub">Track support</span>
+                    </span>
+                </a>
+                <a href="notifications.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">☰</span>
+                    <span class="nav-body">
+                        <span class="nav-label">Notifications</span>
+                        <span class="nav-sub">Recent updates</span>
+                    </span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-btn mobile-btn" id="mobileMenuBtn">☰</button>
+                    <div><p class="eyebrow">Workspace</p><h2>ADMIN</h2></div>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="themeBtn" title="Toggle theme">☾</button>
+                </div>
+            </header>
+
+            <section class="toolbar">
+                <div><div class="hint">Viewing <strong>Users</strong> · built for admin</div></div>
+            </section>
+
+            <section class="content" id="content">
+                <div class="grid-2">
+                    <section class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3 class="panel-title">Manage Users</h3>
+                                <p class="panel-sub">Register, update, or remove accounts quickly.</p>
+                            </div>
+                        </div>
+                        <div class="action-row">
+                           <button class="primary-btn" onclick="openModal('user')">Add User</button>
+                           <button class="secondary-btn" onclick="openModal('editUser')">Edit User</button>
+                           <button class="secondary-btn" onclick="showToast('Bulk update', 'Bulk update mode opened.')">Bulk Update</button>
+                        </div>
+                        <div style="height:14px"></div>
+                        <div class="grid-2">
+                            <div class="stat-card">
+                                <p class="stat-label">Students</p>
+                                <h3 class="stat-value" style="font-size:1.45rem" data-target="1200">1,200</h3>
+                                <div class="stat-foot">Active and enrolled</div>
+                            </div>
+                            <div class="stat-card">
+                                <p class="stat-label">Teachers</p>
+                                <h3 class="stat-value" style="font-size:1.45rem" data-target="75">75</h3>
+                                <div class="stat-foot">Teaching staff</div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="modalRoot"></div>  
+    <div id="toastRoot"></div>
+    
+    <script>
+        // --- Modal System ---
+        function openModal(type) {
+            const modalRoot = document.getElementById("modalRoot");
+            if (!modalRoot) return;
+
+            const config = {
+                user: {
+                    title: "Add User",
+                    body: `
+                        <div class="modal-grid">
+                            <div class="form-grid">
+                                <input class="input" placeholder="Full name" />
+                                <select class="select">
+                                    <option>Student</option>
+                                    <option>Teacher</option>
+                                    <option>Admin</option>
+                                </select>
+                                <input class="input" placeholder="Department / Class" />
+                            </div>
+                            <div class="panel" style="margin:0; margin-top: 16px;">
+                                <h3 class="panel-title">Tip</h3>
+                                <p class="panel-sub">Use clear role assignment to keep the dashboard organized and secure.</p>
+                            </div>
+                        </div>
+                    `,
+                    action: "Create User"
+                },
+                
+                // NEW EDIT / DELETE USER MODAL WITH HEAVY INLINE STYLING FOR WIDER LAYOUT
+                editUser: {
+                    title: "Edit User Profile",
+                    modalWidth: "min-width: 650px; max-width: 800px !important;", 
+                    body: `
+                        <div style="display: flex; flex-direction: column; gap: 24px;">
+                            
+                            <div style="padding-bottom: 24px; border-bottom: 1px solid var(--border);">
+                                <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; display: block;">Search by PRN / Employee ID</label>
+                                <div style="display: flex; gap: 12px; align-items: center;">
+                                    <input class="input" placeholder="e.g. 1234567890" value="1234567890" style="max-width: 250px;" />
+                                    <button class="secondary-btn" type="button" onclick="showToast('User Found', 'Loaded profile details.')">Search</button>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div style="grid-column: 1 / -1;">
+                                    <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">Full Name</label>
+                                    <input type="text" class="input" value="Aman Sharma" style="width: 100%;" />
+                                </div>
+                                
+                                <div>
+                                    <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">Role</label>
+                                    <select class="select" style="width: 100%;">
+                                        <option selected>Student</option>
+                                        <option>Teacher</option>
+                                        <option>Admin</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">Department</label>
+                                    <input type="text" class="input" value="B.Sc IT" style="width: 100%;" />
+                                </div>
+
+                                <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 150px 1fr; gap: 20px; align-items: start;">
+                                    <div>
+                                        <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">PRN / ID</label>
+                                        <input type="tel" class="input" value="12345" style="width: 100%;" />
+                                    </div>
+                                    <div>
+                                        <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">Email Address</label>
+                                        <input type="email" class="input" value="aman@campusflow.edu" style="width: 100%;" />
+                                    </div>
+                                </div>
+
+                                <div style="grid-column: 1 / -1;">
+                                    <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">Account Status</label>
+                                    <select class="select" style="width: 100%; max-width: 200px;">
+                                        <option selected>Active</option>
+                                        <option>Suspended</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            
+                        </div>
+                    `,
+                    action: "Save Changes"
+                },
+                notification: {
+                    title: "Compose Notification",
+                    body: `
+                        <div class="form-grid">
+                            <input class="input" placeholder="Title" />
+                            <textarea class="textarea" placeholder="Write your message..."></textarea>
+                            <select class="select">
+                                <option>Send to Everyone</option>
+                                <option>Send to Teachers</option>
+                                <option>Send to Students</option>
+                            </select>
+                        </div>
+                    `,
+                    action: "Send"
+                }
+            };
+
+            const item = config[type];
+            if (!item) return;
+
+            // Apply custom width if provided, otherwise default.
+            let customStyle = item.modalWidth ? `style="${item.modalWidth}"` : '';
+            
+            // Optional: If it's a delete action, make the primary button red.
+            let primaryBtnStyle = item.action === "Delete User" 
+                ? 'style="background: rgba(239, 68, 68, 0.15); color: #fca5a5; border-color: rgba(239, 68, 68, 0.3);"' 
+                : '';
+
+            modalRoot.innerHTML = `
+                <div class="modal-backdrop" id="modalBackdrop">
+                    <div class="modal" ${customStyle}>
+                        <div class="modal-head">
+                            <h3>${item.title}</h3>
+                            <button class="icon-btn" onclick="closeModal()">✕</button>
+                        </div>
+                        <div class="modal-body">
+                            ${item.body}
+                        </div>
+                        <div class="modal-foot">
+                            <button class="secondary-btn" onclick="closeModal()">Cancel</button>
+                            <button class="primary-btn" ${primaryBtnStyle} onclick="submitModal('${item.action}')">${item.action}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Click outside the modal card to close it
+            document.getElementById("modalBackdrop").addEventListener("click", (e) => {
+                if (e.target.id === "modalBackdrop") closeModal();
+            });
+        }
+
+        function closeModal() {
+            const modalRoot = document.getElementById("modalRoot");
+            if (modalRoot) modalRoot.innerHTML = "";
+        }
+
+        function submitModal(actionName) {
+            closeModal();
+            showToast(actionName, `${actionName} triggered successfully.`);
+        }
+
+        // --- Toast Notifications ---
+        function showToast(title, message) {
+            const toastRoot = document.getElementById("toastRoot");
+            const toast = document.createElement("div");
+            toast.className = "toast";
+            toast.innerHTML = `<strong>${title}</strong><p>${message}</p>`;
+            toastRoot.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateX(16px)";
+            }, 2600);
+            setTimeout(() => toast.remove(), 3100);
+        }
+
+        // --- Theme Toggle ---
+        document.getElementById("themeBtn").addEventListener("click", () => {
+            let theme = document.body.dataset.theme === "dark" ? "light" : "dark";
+            document.body.dataset.theme = theme;
+            document.getElementById("themeBtn").textContent = theme === "dark" ? "☾" : "☀";
+        });
+
+        // --- Mobile Hamburger Menu ---
+        document.getElementById("mobileMenuBtn")?.addEventListener("click", () => {
+            document.body.classList.toggle("sidebar-open");
+        });
+
+        // --- Animated Counters ---
+        document.addEventListener("DOMContentLoaded", () => {
+            document.querySelectorAll(".stat-value[data-target]").forEach(el => {
+                const target = parseFloat(el.dataset.target.replace(/,/g, ""));
+                if (isNaN(target)) return;
+                const duration = 1000;
+                const start = performance.now();
+                (function tick(now) {
+                    const t = Math.min((now - start) / duration, 1);
+                    const ease = 1 - Math.pow(1 - t, 3);
+                    el.textContent = Math.round(target * ease).toLocaleString();
+                    if (t < 1) requestAnimationFrame(tick);
+                })(start);
+            });
+        });
+
+        // --- Auto-Highlight Active Navigation Link ---
+        document.addEventListener("DOMContentLoaded", () => {
+            let currentPage = window.location.pathname.split('/').pop();
+            if (currentPage === "") currentPage = "dashboard.html"; 
+
+            document.querySelectorAll(".nav .nav-item").forEach(link => {
+                link.classList.remove("active");
+                if (link.getAttribute("href") === currentPage) {
+                    link.classList.add("active");
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Dashboard</title>
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body data-theme="dark" data-role="admin">
+    <div class="bg-orb orb-1"></div><div class="bg-orb orb-2"></div><div class="bg-grid"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-mark" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border: none;"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="brand-text"><h1>CampusFlow</h1><p>Role-based smart dashboard</p></div>
+            </div>
+            <nav class="nav">
+                <a href="teacher-dashboard.html" class="nav-item active" style="text-decoration: none;"><span class="nav-ico">▣</span><span class="nav-body"><span class="nav-label">Dashboard</span><span class="nav-sub">Overview</span></span></a>
+                <a href="teacher-attendance.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">✓</span><span class="nav-body"><span class="nav-label">Attendance</span><span class="nav-sub">Update class</span></span></a>
+                <a href="teacher-results.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">◉</span><span class="nav-body"><span class="nav-label">Results</span><span class="nav-sub">Edit marks</span></span></a>
+                <a href="teacher-timetable.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">⌗</span><span class="nav-body"><span class="nav-label">Timetable</span><span class="nav-sub">Build schedule</span></span></a>
+                <a href="teacher-notifications.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">☰</span><span class="nav-body"><span class="nav-label">Notifications</span><span class="nav-sub">Push updates</span></span></a>
+                <a href="teacher-tickets.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">✉</span><span class="nav-body"><span class="nav-label">Tickets</span><span class="nav-sub">Raise support</span></span></a>
+                <a href="teacher-profile.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">👤</span><span class="nav-body"><span class="nav-label">Profile</span><span class="nav-sub">My details</span></span></a>
+            </nav>
+        </aside>
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-btn mobile-btn" id="mobileMenuBtn">☰</button>
+                    <div><p class="eyebrow">Workspace</p><h2>TEACHER</h2></div>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="themeBtn" title="Toggle theme">☾</button>
+                </div>
+            </header>
+            <section class="toolbar"><div><div class="hint">Viewing <strong>Dashboard</strong> · built for teacher</div></div></section>
+            <section class="content" id="content">
+                <div class="grid-4" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">📘</div><div><p class="stat-label">Classes</p><h3 class="stat-value" data-target="6">6</h3></div></div></div><div class="stat-foot">This week</div></article>
+                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">✓</div><div><p class="stat-label">Attendance</p><h3 class="stat-value" data-target="94">94%</h3></div></div></div><div class="stat-foot">Average today</div></article>
+                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">✎</div><div><p class="stat-label">Pending Results</p><h3 class="stat-value" data-target="12">12</h3></div></div></div><div class="stat-foot">To update</div></article>
+                    
+                </div>
+                <div class="grid-2" style="margin-top: 18px;">
+                    <section class="panel">
+                        <div class="panel-head"><div><h3 class="panel-title">Quick Controls</h3><p class="panel-sub">Actions that matter most for teacher workflow.</p></div></div>
+                        <div class="action-row" style="flex-direction: column; align-items: flex-start; gap: 12px;">
+                            <a href="teacher-attendance.html" class="primary-btn" style="text-decoration:none; text-align:center; display:block; width:100%;">Mark Attendance</a>
+                            <a href="teacher-results.html" class="secondary-btn" style="text-decoration:none; text-align:center; display:block; width:100%;">Update Results</a>
+                            <a href="teacher-notifications.html" class="secondary-btn" style="text-decoration:none; text-align:center; display:block; width:100%;">Push Notification</a>
+                        </div>
+                    </section>
+                    <section class="panel">
+                        <div class="panel-head"><div><h3 class="panel-title">Today's Focus</h3><p class="panel-sub">What needs attention right now.</p></div></div>
+                        <div class="list">
+                            <div class="list-item"><div><strong>Class A</strong><p>Attendance update required</p></div><span class="badge warn">Urgent</span></div>
+                            <div class="list-item"><div><strong>Class B</strong><p>Result corrections pending</p></div><span class="badge info">Open</span></div>
+                            <div class="list-item"><div><strong>Lab 2</strong><p>Timetable slot confirmed</p></div><span class="badge good">Ready</span></div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div id="modalRoot"></div><div id="toastRoot"></div>
+    <script src="teacher-scripts.js"></script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Notifications</title>
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body data-theme="dark" data-role="admin">
+    <div class="bg-orb orb-1"></div><div class="bg-orb orb-2"></div><div class="bg-grid"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-mark" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border: none;"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="brand-text"><h1>CampusFlow</h1><p>Role-based smart dashboard</p></div>
+            </div>
+            <nav class="nav">
+                <a href="teacher-dashboard.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">▣</span><span class="nav-body"><span class="nav-label">Dashboard</span><span class="nav-sub">Overview</span></span></a>
+                <a href="teacher-attendance.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">✓</span><span class="nav-body"><span class="nav-label">Attendance</span><span class="nav-sub">Update class</span></span></a>
+                <a href="teacher-results.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">◉</span><span class="nav-body"><span class="nav-label">Results</span><span class="nav-sub">Edit marks</span></span></a>
+                <a href="teacher-timetable.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">⌗</span><span class="nav-body"><span class="nav-label">Timetable</span><span class="nav-sub">Build schedule</span></span></a>
+                <a href="teacher-notifications.html" class="nav-item active" style="text-decoration: none;"><span class="nav-ico">☰</span><span class="nav-body"><span class="nav-label">Notifications</span><span class="nav-sub">Push updates</span></span></a>
+                <a href="teacher-tickets.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">✉</span><span class="nav-body"><span class="nav-label">Tickets</span><span class="nav-sub">Raise support</span></span></a>
+                <a href="teacher-profile.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">👤</span><span class="nav-body"><span class="nav-label">Profile</span><span class="nav-sub">My details</span></span></a>
+            </nav>
+        </aside>
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-btn mobile-btn" id="mobileMenuBtn">☰</button>
+                    <div><p class="eyebrow">Workspace</p><h2>TEACHER</h2></div>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="themeBtn" title="Toggle theme">☾</button>
+                </div>
+            </header>
+            <section class="toolbar"><div><div class="hint">Viewing <strong>Notifications</strong> · built for teacher</div></div></section>
+            <section class="content" id="content">
+                <div class="grid-2">
+                    <section class="panel">
+                        <div class="panel-head"><div><h3 class="panel-title">Push Notice</h3><p class="panel-sub">Send quick class announcements without clutter.</p></div></div>
+                        <div class="form-grid">
+                            <input class="input" placeholder="Announcement title" />
+                            <textarea class="textarea" placeholder="Message for students..."></textarea>
+                            <button class="primary-btn" onclick="openModal('notification')">Compose Notification</button>
+                        </div>
+                    </section>
+                    <section class="panel">
+                        <div class="panel-head"><div><h3 class="panel-title">Recent Announcements</h3><p class="panel-sub">Latest messages shared with the class.</p></div></div>
+                        <div class="list">
+                            <div class="list-item"><div><strong>Quiz reminder</strong><p>Tomorrow at 10 AM</p></div><span class="badge info">Sent</span></div>
+                            <div class="list-item"><div><strong>Assignment</strong><p>Submit before Friday</p></div><span class="badge good">Sent</span></div>
+                            <div class="list-item"><div><strong>Lab update</strong><p>Room changed to 204</p></div><span class="badge warn">Sent</span></div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div id="modalRoot"></div><div id="toastRoot"></div>
+    <script src="teacher-scripts.js"></script>
+</body>
+</html>

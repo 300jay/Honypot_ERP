@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Tickets</title>
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body data-theme="dark" data-role="admin">
+    <div class="bg-orb orb-1"></div><div class="bg-orb orb-2"></div><div class="bg-grid"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-mark"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="brand-text"><h1>CampusFlow</h1><p>Role-based smart dashboard</p></div>
+            </div>
+            <nav class="nav">
+                <a href="student-dashboard.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">▣</span><span class="nav-body"><span class="nav-label">Dashboard</span><span class="nav-sub">Overview</span></span></a>
+                <a href="student-attendance.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">✓</span><span class="nav-body"><span class="nav-label">Attendance</span><span class="nav-sub">View progress</span></span></a>
+                <a href="student-results.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">◉</span><span class="nav-body"><span class="nav-label">Results</span><span class="nav-sub">View marks</span></span></a>
+                <a href="student-timetable.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">⌗</span><span class="nav-body"><span class="nav-label">Timetable</span><span class="nav-sub">View schedule</span></span></a>
+                <a href="student-notifications.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">☰</span><span class="nav-body"><span class="nav-label">Notifications</span><span class="nav-sub">Announcements</span></span></a>
+                <a href="student-tickets.html" class="nav-item active" style="text-decoration: none;"><span class="nav-ico">✉</span><span class="nav-body"><span class="nav-label">Tickets</span><span class="nav-sub">Raise support</span></span></a>
+                <a href="student-profile.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">👤</span><span class="nav-body"><span class="nav-label">Profile</span><span class="nav-sub">My details</span></span></a>
+            </nav>
+        </aside>
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-btn mobile-btn" id="mobileMenuBtn">☰</button>
+                    <div><p class="eyebrow">Workspace</p><h2>STUDENT</h2></div>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="themeBtn" title="Toggle theme">☾</button>
+                </div>
+            </header>
+            <section class="toolbar"><div><div class="hint">Viewing <strong>Tickets</strong> · built for student</div></div></section>
+            <section class="content" id="content">
+                <div class="grid-2">
+                    <section class="panel">
+                        <div class="panel-head"><div><h3 class="panel-title">Raise a Ticket</h3><p class="panel-sub">Send support requests in a clean form.</p></div></div>
+                        <button class="primary-btn" onclick="openModal('ticket')">Open Ticket Form</button>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-head"><div><h3 class="panel-title">Previous Tickets</h3><p class="panel-sub">Track your support history.</p></div></div>
+                        <div class="list">
+                            <div class="list-item"><div><strong>Result mismatch</strong><p>Resolved yesterday</p></div><span class="badge good">Closed</span></div>
+                            <div class="list-item"><div><strong>Timetable doubt</strong><p>Waiting for reply</p></div><span class="badge warn">Open</span></div>
+                            <div class="list-item"><div><strong>Attendance query</strong><p>Seen by admin</p></div><span class="badge info">Pending</span></div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div id="modalRoot"></div><div id="toastRoot"></div>
+    <script src="student-scripts.js"></script>
+</body>
+</html>

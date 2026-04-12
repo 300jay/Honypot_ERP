@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Attendance</title>
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body data-theme="dark" data-role="admin">
+    <div class="bg-orb orb-1"></div><div class="bg-orb orb-2"></div><div class="bg-grid"></div>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-mark"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="brand-text"><h1>CampusFlow</h1><p>Role-based smart dashboard</p></div>
+            </div>
+            <nav class="nav">
+                <a href="student-dashboard.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">▣</span><span class="nav-body"><span class="nav-label">Dashboard</span><span class="nav-sub">Overview</span></span></a>
+                <a href="student-attendance.html" class="nav-item active" style="text-decoration: none;"><span class="nav-ico">✓</span><span class="nav-body"><span class="nav-label">Attendance</span><span class="nav-sub">View progress</span></span></a>
+                <a href="student-results.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">◉</span><span class="nav-body"><span class="nav-label">Results</span><span class="nav-sub">View marks</span></span></a>
+                <a href="student-timetable.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">⌗</span><span class="nav-body"><span class="nav-label">Timetable</span><span class="nav-sub">View schedule</span></span></a>
+                <a href="student-notifications.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">☰</span><span class="nav-body"><span class="nav-label">Notifications</span><span class="nav-sub">Announcements</span></span></a>
+                <a href="student-tickets.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">✉</span><span class="nav-body"><span class="nav-label">Tickets</span><span class="nav-sub">Raise support</span></span></a>
+                <a href="student-profile.html" class="nav-item" style="text-decoration: none;"><span class="nav-ico">👤</span><span class="nav-body"><span class="nav-label">Profile</span><span class="nav-sub">My details</span></span></a>
+            </nav>
+        </aside>
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-btn mobile-btn" id="mobileMenuBtn">☰</button>
+                    <div><p class="eyebrow">Workspace</p><h2>STUDENT</h2></div>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="themeBtn" title="Toggle theme">☾</button>
+                </div>
+            </header>
+            <section class="toolbar"><div><div class="hint">Viewing <strong>Attendance</strong> · built for student</div></div></section>
+            <section class="content" id="content">
+                <div class="grid-4" style="margin-bottom:18px">
+                    <div class="stat-card"><p class="stat-label">Overall</p><h3 class="stat-value" style="font-size:1.45rem">93.63%</h3><div class="stat-foot">Total attendance</div></div>
+                    <div class="stat-card"><p class="stat-label">Theory</p><h3 class="stat-value" style="font-size:1.45rem">91.43%</h3><div class="stat-foot">Theory classes</div></div>
+                    <div class="stat-card"><p class="stat-label">Practical</p><h3 class="stat-value" style="font-size:1.45rem">95.06%</h3><div class="stat-foot">Lab sessions</div></div>
+                    <div class="stat-card"><p class="stat-label">Tutorial</p><h3 class="stat-value" style="font-size:1.45rem">100%</h3><div class="stat-foot">Tutorials</div></div>
+                </div>
+
+                <div class="attendance-layout">
+                    <section class="panel">
+                        <div class="attendance-summary-top">
+                            <div><h3 class="panel-title">Self Attendance</h3><p class="panel-sub">Subject-wise attendance summary.</p></div>
+                            <div class="attendance-legend"><span class="badge good">Present</span><span class="badge bad">Absent</span><span class="badge info">Holiday</span></div>
+                        </div>
+                        <div class="attendance-summary-wrap">
+                            <table class="attendance-summary-table">
+                                <thead><tr><th>SrNo</th><th>Subject</th><th>Type</th><th>Present</th><th>Total Period</th><th>Percentage (%)</th></tr></thead>
+                                <tbody>
+                                    <tr><td>1</td><td>Probability and Statistics</td><td>TH</td><td>20</td><td>22</td><td>90.91</td></tr>
+                                    <tr><td>2</td><td>Database Management System</td><td>TH</td><td>21</td><td>22</td><td>95.45</td></tr>
+                                    <tr><td>3</td><td>OS Laboratory</td><td>PR</td><td>16</td><td>18</td><td>88.89</td></tr>
+                                    <tr class="summary-row total"><td></td><td></td><td>Total</td><td>147</td><td>157</td><td>93.63</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                   
+                </div>
+            </section>
+        </main>
+    </div>
+    <div id="modalRoot"></div><div id="toastRoot"></div>
+    <script src="student-scripts.js"></script>
+</body>
+</html>
