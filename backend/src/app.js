@@ -11,13 +11,20 @@ const loginAttempts ={};
 const INVALID_INPUT = {message: "Invalid input"};
 const UNAUTHORIZED = {message: "Unauthorized"};
 const ERROR = {message: "Error"};
+
+const ticketRoutes = require("./routes/ticketRoutes");
+// const notificationRoutes = require("./routes/notificationRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+
+const authMiddleware= require("./middleware/authMiddleware");
+const requireRole = require("./middleware/roleMiddleware");
 const {logActivity} = require("./logger");
 const loginLimiter = rateLimit({
     windowMs: 15*60*1000,
     max: 5,
     message: {message:"Too many attempts, try later"}
 })
-const accountLimiter = (req, res, next) => {
+const accountLimiter = async (req, res, next) => {
     const email = req.body.email?.toLowerCase();
     if(!email) return next();
     const now = Date.now();
@@ -45,78 +52,7 @@ const accountLimiter = (req, res, next) => {
     }
     next();
 }
-const authMiddleware = (req, res, next) => {
-    const authHeader = req.headers["authorization"];
 
-    if (!authHeader) {
-            logActivity(db,{
-                activity: "ACCESS_PROTECTED",
-                ip_address: req.ip,
-                result: "FAILED",
-                source: "AUTH"
-            });
-        return res.json({ message: "No token provided" });
-    }
-
-    const token = authHeader.startsWith("Bearer ")
-        ? authHeader.split(" ")[1]
-        : authHeader;
-
-    try {
-        const decoded = jwt.verify(token, SECRET_KEY);
-
-        const query = `
-            SELECT * FROM admin.session_tracker 
-            WHERE session_id = ? AND logout_time IS NULL
-        `;
-
-        db.query(query, [decoded.session_id], (err, results) => {
-            if (err || results.length === 0) {
-                logActivity(db,{
-                    account_id: decoded.id,
-                    activity: "INVALID_SESSION",
-                    ip_address: req.ip,
-                    session_id: decoded.session_id,
-                    result: "FAILED",
-                    source:"AUTH"
-                });
-                return res.json({ message: "Invalid session" });
-            }
-
-            const roleQuery = `
-                SELECT r.role_name 
-                FROM og.account_role_map arm 
-                JOIN og.access_roles r ON arm.role_id = r.role_id 
-                WHERE arm.account_id = ?
-            `;
-
-            db.query(roleQuery, [decoded.id], (err2, roleResults) => {
-                if (err2 || roleResults.length === 0) {
-                    logActivity(db,{account_id: decoded.id, activity:"ROLE_NOT_FOUND", ip_address:req.ip, session_id: decoded.session_id, result: "FAILED", source:"AUTH"
-                        });
-                    return res.json({ message: "Role not found" });
-                }
-
-            
-                req.user = {
-                    ...decoded,
-                    role: roleResults[0].role_name
-                };
-
-                next(); 
-            });
-        });
-
-    } catch (err) {
-        logActivity(db, {
-            activity: "INVALID_TOKEN",
-            ip_address: req.ip,
-            result:"FAILED",
-            source:"AUTH"
-        });
-        return res.json({ message: "Invalid token" });
-    }
-};
 const logRequest = (activityName) => {
     return (req, res, next) => {
         const originalSend = res.json;
@@ -135,33 +71,33 @@ const logRequest = (activityName) => {
                         ? "FAILED"
                         : "SUCCESS",
                 source: "ACTIVITY"
-            });
+            })
 
             return originalSend.call(this, body);
         };
 
         next();
     };
-};const requireRole = (role) => {
-    return (req, res, next) => {
-        if(!req.user || req.user.role !== role){
-            return res.json({message: "Access denied"});
-        } 
-        next();
-    };
 };
 
-function logHoneypotEvent(req, eventType,details){
+async function logHoneypotEvent(req, eventType, details){
     const ip = req.ip;
     const userId = req.user ? req.user.id : null;
-
-    const query = 'INSERT INTO admin.activity_logs(account_id, activity, ip_address, result, source) values (?,?,?,?,?)';
     const activity = `[${eventType}] ${details}`;
-    db.query(query, [userId,activity,ip,"CAPTURED", "HONEYPOT"], (err) => {
-        if (err) console.error("Honeypot log error:", err);
-    });
+
+    try{
+        await db.execute(
+            'INSERT INTO admin.activity_logs(account_id, activity, ip_address, result, source) values (?,?,?,?,?)',
+            [userId, activity, ip, "CAPTURED", "HONEYPOT"]
+        );
+    } catch(err){
+        console.error("Honeypot log error:", err);
+    }
 }
 app.use(express.json());
+app.use("/service/ticket", ticketRoutes);
+// app.use("/service/notifications", notificationRoutes);
+app.use("/manage",adminRoutes);
 
 app.get("/",(req,res) => {
     res.send("Server is running");
@@ -175,312 +111,234 @@ app.get("/",(req,res) => {
 //     });
 // });
 
-app.get("/student/profile", authMiddleware, requireRole("student"),logRequest("VIEW_PROFILE"), (req, res)=>{
-    const accountId = req.user.id;
+app.get("/student/profile", authMiddleware, requireRole("student"), logRequest("VIEW_PROFILE"), async (req, res)=>{
+    try{
+        const accountId = req.user.id;
 
-    const query = 'SELECT student_id, full_name, prn, class_id, roll_no, admission_year FROM og.student_profiles WHERE account_id = ?';
-    db.query(query, [accountId], (err, results) =>{
-        if (err) return res.json(ERROR);
-        if (results.length===0){
-            return res.json({message: "Profile not found"})
+        const [results] = await db.execute(
+            'SELECT student_id, full_name, prn, class_id, roll_no, admission_year FROM og.student_profiles WHERE account_id = ?',
+            [accountId]
+        );
+
+        if (results.length === 0){
+            return res.json({message: "Profile not found"});
         }
+
         res.json(results[0]);
-    });
+    }catch(err){
+        res.json(ERROR);
+    }
 });
+app.get("/student/attendance", authMiddleware, requireRole("student"), logRequest("VIEW_ATTENDANCE"), async (req,res)=>{
+    try{
+        const [results] = await db.execute(
+            `SELECT ar.status, asess.attendance_date, co.course_id, co.class_id
+             FROM og.attendance_records ar
+             JOIN og.student_profiles sp ON ar.student_id = sp.student_id 
+             JOIN og.attendance_sessions asess ON ar.attendance_session_id = asess.attendance_session_id
+             JOIN og.course_offerings co ON asess.offering_id = co.offering_id
+             WHERE sp.account_id = ?`,
+            [req.user.id]
+        );
 
-app.get("/student/attendance", authMiddleware, requireRole("student"), logRequest("VIEW_ATTENDANCE"), (req,res) =>{
-    const accountId = req.user.id;
-
-    const query = `SELECT ar.status, asess.attendance_date, co.course_id, co.class_id
-                   FROM og.attendance_records ar
-                   JOIN og.student_profiles sp ON ar.student_id = sp.student_id 
-                   JOIN og.attendance_sessions asess ON ar.attendance_session_id = asess.attendance_session_id
-                   JOIN og.course_offerings co ON asess.offering_id = co.offering_id
-                   WHERE sp.account_id =?`;
-
-    db.query(query,[accountId], (err,results)=>{
-        if (err) return res.json(ERROR);
-        
         res.json(results);
-    });
+    }catch(err){
+        res.json(ERROR);
+    }
 });
+app.get("/student/results", authMiddleware, requireRole("student"), logRequest("VIEW_RESULTS"), async (req, res)=>{
+    try{
+        const [results] = await db.execute(
+            'SELECT e.exam_name, e.exam_date, e.max_marks, er.marks_obtained, er.grade FROM og.exam_results er JOIN og.student_profiles sp ON er.student_id = sp.student_id JOIN og.exams e ON er.exam_id = e.exam_id WHERE sp.account_id = ?',
+            [req.user.id]
+        );
 
-app.get("/student/results", authMiddleware, requireRole("student"), logRequest("VIEW_RESULTS"), (req, res)=>{
-    const accountId = req.user.id;
-
-    const query = 'SELECT e.exam_name, e.exam_date, e.max_marks, er.marks_obtained, er.grade FROM og.exam_results er JOIN og.student_profiles sp ON er.student_id = sp.student_id JOIN og.exams e ON er.exam_id = e.exam_id WHERE sp.account_id = ?';
-    db.query(query, [accountId], (err, results) =>{
-        if (err) return res.json({message:"Error fetching results"});
         res.json(results);
-    });
+    }catch(err){
+        res.json({message:"Error fetching results"});
+    }
 });
+app.post("/teacher/attendance", authMiddleware, requireRole("teacher"),logRequest("MARK_ATTENDANCE"), async (req, res) =>{
+    try{
+        const {student_id, attendance_date, status,offering_id} = req.body;
 
-app.post("/teacher/attendance", authMiddleware, requireRole("teacher"),logRequest("MARK_ATTENDANCE"), (req, res) =>{
-    const {student_id, attendance_date, status,offering_id} = req.body;
+        if(!isNumber(student_id)||!isNumber(offering_id)) return res.json(INVALID_INPUT);
+        if(!isValidDate(attendance_date)) return res.json(INVALID_INPUT);
+        if(!isEnum(status,["present", "absent"])) return res.json(INVALID_INPUT);
+        if (!student_id||!attendance_date||!status||!offering_id) return res.json({message: "All fields required"});
 
-    if(!isNumber(student_id)||!isNumber(offering_id)){
-        return res.json(INVALID_INPUT);
-    }
-    if(!isValidDate(attendance_date)){
-        return res.json(INVALID_INPUT);
-    }
-    if(!isEnum(status,["present", "absent"])){
-        return res.json(INVALID_INPUT);
-    }
-    if (!student_id||!attendance_date||!status||!offering_id){
-        return res.json({message: "All fields required"});
-    }
+        const [teacherRes] = await db.execute(
+            'SELECT teacher_id FROM og.teacher_profiles WHERE account_id = ?',
+            [req.user.id]
+        );
 
-    const getTeacher = 'SELECT teacher_id FROM og.teacher_profiles WHERE account_id = ?';
-    db.query(getTeacher, [req.user.id], (err, teacherRes)=>{
-        if (err || teacherRes.length===0){
-            return res.json(UNAUTHORIZED);
-        }
+        if (teacherRes.length===0) return res.json(UNAUTHORIZED);
+
         const teacher_id = teacherRes[0].teacher_id;
-    
-    const checkQuery = 'SELECT * FROM og.course_offerings where offering_id = ? and teacher_id =?';
 
-    db.query(checkQuery, [offering_id, teacher_id], (err,results) => {
-        if(err||results.length === 0){
-            return res.json({message:"Unauthorized"});
-        }
-    const studentCheck = 'SELECT * FROM og.student_course_enrollments WHERE student_id = ? AND offering_id = ?';
-        db.query(studentCheck, [student_id, offering_id], (err2, result2) =>{
-            if (err2||result2.length===0){
-                return res.json({message:"Unauthorized"});
-            }
-        
+        const [course] = await db.execute(
+            'SELECT * FROM og.course_offerings where offering_id = ? and teacher_id =?',
+            [offering_id, teacher_id]
+        );
 
-    const sessionQuery = 'INSERT INTO og.attendance_sessions (offering_id, attendance_date, marked_by) VALUES (?,?,?)';
-    db.query(sessionQuery, [offering_id, attendance_date, teacher_id], (err, result) => {
-        if(err){
-            console.error(err);
-            return res.json(ERROR);
-        }
-        const sessionId = result.insertId;
-        
-        const recordQuery = 'INSERT INTO og.attendance_records (attendance_session_id, student_id, status) VALUES (?,?,?)';
-        db.query(recordQuery,[sessionId, student_id, status], (err2) =>{
-            if (err2){
-                console.error(err2);
-                return res.json(ERROR);
-            }
-            res.json({message: "Attendance marked successfully"});
-        });
-    });
-});
-});
-});
-});
-app.post("/teacher/results", authMiddleware, requireRole("teacher"),logRequest("ADD_RESULTS"), (req, res) =>{
-    const {offering_id, student_id, exam_name, exam_date, max_marks, marks_obtained, grade} = req.body;
+        if(course.length === 0) return res.json({message:"Unauthorized"});
 
-    if(!offering_id||!student_id|| !exam_name || !exam_date || !max_marks || !marks_obtained || !grade){
-        return res.json(INVALID_INPUT);
+        const [studentCheck] = await db.execute(
+            'SELECT * FROM og.student_course_enrollments WHERE student_id = ? AND offering_id = ?',
+            [student_id, offering_id]
+        );
+
+        if (studentCheck.length===0) return res.json({message:"Unauthorized"});
+
+        const [session] = await db.execute(
+            'INSERT INTO og.attendance_sessions (offering_id, attendance_date, marked_by) VALUES (?,?,?)',
+            [offering_id, attendance_date, teacher_id]
+        );
+
+        await db.execute(
+            'INSERT INTO og.attendance_records (attendance_session_id, student_id, status) VALUES (?,?,?)',
+            [session.insertId, student_id, status]
+        );
+
+        res.json({message: "Attendance marked successfully"});
+    }catch(err){
+        console.error(err);
+        res.json(ERROR);
     }
+});
+app.post("/teacher/results", authMiddleware, requireRole("teacher"),logRequest("ADD_RESULTS"), async (req, res)=>{
+    try{
+        const {offering_id, student_id, exam_name, exam_date, max_marks, marks_obtained, grade} = req.body;
 
-    if(!isNumber(student_id)|| !isNumber(offering_id) || !isNumber(max_marks) || !isNumber(marks_obtained)){
-        return res.json(INVALID_INPUT);
-    }
+        if(!offering_id||!student_id|| !exam_name || !exam_date || !max_marks || !marks_obtained || !grade) return res.json(INVALID_INPUT);
+        if(!isNumber(student_id)|| !isNumber(offering_id) || !isNumber(max_marks) || !isNumber(marks_obtained)) return res.json(INVALID_INPUT);
+        if(!isValidDate(exam_date)) return res.json(INVALID_INPUT);
 
-    if(!isValidDate(exam_date)){
-        return res.json(INVALID_INPUT);
-    }
-    const getTeacher = 'SELECT teacher_id FROM og.teacher_profiles WHERE account_id = ?';
+        const [teacherRes] = await db.execute(
+            'SELECT teacher_id FROM og.teacher_profiles WHERE account_id = ?',
+            [req.user.id]
+        );
 
-    db.query(getTeacher, [req.user.id], (err, teacherRes)=>{
-        if (err || teacherRes.length===0){
-            return res.json(UNAUTHORIZED);
-        }
+        if (teacherRes.length===0) return res.json(UNAUTHORIZED);
+
         const teacher_id = teacherRes[0].teacher_id;
-    
-    const checkQuery = 'SELECT * FROM og.course_offerings WHERE offering_id = ? AND teacher_id = ?';
-    db.query(checkQuery, [offering_id, teacher_id], (err, results)=>{
-        if(err || results.length===0){
-            return res.json(UNAUTHORIZED);
-        }
-    
-    const studentCheck = 'SELECT * FROM og.student_course_enrollments WHERE student_id = ? AND offering_id =?';
-    db.query(studentCheck, [student_id, offering_id], (err2, result2)=>{
-        if(err2 || result2.length===0){
-            return res.json(UNAUTHORIZED);
-        }
-    
-    const examQuery = 'INSERT INTO og.exams (offering_id, exam_name, exam_date, max_marks) VALUES (?,?,?,?)';
 
-    db.query(examQuery, [offering_id, exam_name, exam_date, max_marks], (err, result)=>{
-        if(err){
-            console.error(err);
-            return res.json(ERROR);
-        }
-        const examId = result.insertId;
+        const [course] = await db.execute(
+            'SELECT * FROM og.course_offerings WHERE offering_id = ? AND teacher_id = ?',
+            [offering_id, teacher_id]
+        );
 
-        const resultQuery = 'INSERT INTO og.exam_results (exam_id, student_id, marks_obtained, grade) VALUES (?,?,?,?)';
-        db.query(resultQuery,[examId, student_id, marks_obtained, grade], (err2) =>{
-            if (err2){
-                console.error(err2);
-                return res.json(ERROR);
-            }
-            res.json({message: "Result added successfully"});
-        });
-    });
-    });
-});
-});
-});
+        if(course.length===0) return res.json(UNAUTHORIZED);
 
+        const [studentCheck] = await db.execute(
+            'SELECT * FROM og.student_course_enrollments WHERE student_id = ? AND offering_id =?',
+            [student_id, offering_id]
+        );
+
+        if(studentCheck.length===0) return res.json(UNAUTHORIZED);
+
+        const [exam] = await db.execute(
+            'INSERT INTO og.exams (offering_id, exam_name, exam_date, max_marks) VALUES (?,?,?,?)',
+            [offering_id, exam_name, exam_date, max_marks]
+        );
+
+        await db.execute(
+            'INSERT INTO og.exam_results (exam_id, student_id, marks_obtained, grade) VALUES (?,?,?,?)',
+            [exam.insertId, student_id, marks_obtained, grade]
+        );
+
+        res.json({message: "Result added successfully"});
+    }catch(err){
+        console.error(err);
+        res.json(ERROR);
+    }
+});
 const {isEmail, isNumber, isEnum, isValidDate} = require("./validators");
 app.post("/service/create-user", authMiddleware, requireRole("admin"), logRequest("CREATE_ACCOUNT"), async(req, res) => {
     let { email, password, full_name, prn, class_id, roll_no, admission_year, role, department } = req.body;
 
-    //to trim the details
     email = email?.trim().toLowerCase();
     full_name = full_name?.trim();
     department = department?.trim();
-    if (!email || !password || !full_name || !role) {
-        return res.json({ message: "All fields required" });
-    }
-    if(!isEmail(email)||password.length<6){
-        return res.json(INVALID_INPUT);
-    }
-    if(!isEnum(role, ["student", "teacher", "admin"])){
-        return res.json ({message: "Invalid role"});
-    }
+
+    if (!email || !password || !full_name || !role) return res.json({ message: "All fields required" });
+    if(!isEmail(email)||password.length<6) return res.json(INVALID_INPUT);
+    if(!isEnum(role, ["student", "teacher", "admin"])) return res.json ({message: "Invalid role"});
+
     if(role === "student"){
-        if(!isNumber(class_id)|| !isNumber(roll_no) || !isNumber(admission_year)){
-            return res.json(INVALID_INPUT);
-        }
+        if(!isNumber(class_id)|| !isNumber(roll_no) || !isNumber(admission_year)) return res.json(INVALID_INPUT);
     }
-    
-    if(full_name.length>100){
-        return res.json(INVALID_INPUT);
-    }
+
     if(role === "teacher"){
-        if(!department || department.length>100){
-            return res.json(INVALID_INPUT);
-        }
+        if(!department || department.length>100) return res.json(INVALID_INPUT);
     }
-
+    let conn;
     try{
-        const hashedPassword = await bcrypt.hash(password, 10);
+        conn = await db.getConnection();
 
-        db.beginTransaction((err)=> {
-            if(err){
-                return res.json({message: "Transaction start failed"});
+        await conn.beginTransaction();
+
+        const hashedPassword = password;
+
+        const [account] = await conn.execute(
+            'INSERT INTO og.accounts (email, password_hash) VALUES (?, ?)',
+            [email, hashedPassword]
+        );
+
+        const accountId = account.insertId;
+
+        const [roleRes] = await conn.execute(
+            "SELECT role_id FROM og.access_roles WHERE role_name = ?",
+            [role]
+        );
+
+        if (roleRes.length ===0){
+            await conn.rollback();
+            conn.release();
+            return res.json({message: "Role fetch failed"});
+        }
+
+        await conn.execute(
+            "INSERT INTO og.account_role_map (account_id, role_id) VALUES (?,?)",
+            [accountId, roleRes[0].role_id]
+        );
+
+        if (role === "student") {
+            if (!prn || class_id == null || roll_no == null || admission_year == null){
+                await conn.rollback();
+                conn.release();
+                return res.json({ message: "Student fields missing" });
             }
 
-        const accountQuery = 'INSERT INTO og.accounts (email, password_hash) VALUES (?, ?)';
-        db.query(accountQuery, [email, hashedPassword], (err, result) =>{
-            if(err){
-                console.error(err);
-                return db.rollback(() => {
-                    return res.json({ message : "Error creating account"});
-            });
+            await conn.execute(
+                'INSERT INTO og.student_profiles (account_id, prn, full_name, class_id, roll_no, admission_year) VALUES (?,?,?,?,?,?)',
+                [accountId, prn, full_name, class_id, roll_no, admission_year]
+            );
+        }
+
+        if (role === "teacher") {
+            if (!department){
+                await conn.rollback();
+                conn.release();
+                return res.json({ message: "Department required for teacher" });
             }
 
-            const accountId = result.insertId;
+            await conn.execute(
+                'INSERT INTO og.teacher_profiles (account_id, full_name, department) VALUES (?, ?, ?)',
+                [accountId, full_name, department]
+            );
+        }
 
-            const getRoleQuery = "SELECT role_id FROM og.access_roles WHERE role_name = ?";
+        await conn.commit();
+        conn.release();
 
-            db.query(getRoleQuery, [role], (errRole, roleResult)=>{
-                if (errRole || roleResult.length ===0){
-                    console.error(errRole);
-                    return db.rollback(() => {
-                        return res.json({message: "Role fetch failed"});
-                    });
-                }
-
-                const roleID = roleResult[0].role_id;
-
-                const mapQuery = "INSERT INTO og.account_role_map (account_id, role_id) VALUES (?,?)";
-                db.query(mapQuery, [accountId, roleID], (errMap) => {
-                    if (errMap){
-                        console.error(errMap);
-                        return db.rollback(() => {
-                            return res.json({message: "Role assignment failed"});
-                        });
-                    }
-
-                    if (role === "student") {
-
-                        if (!prn || class_id == null || roll_no == null || admission_year == null) {
-                            return db.rollback(() => {
-                                return res.json({ message: "Student fields missing" });
-                            });
-                        }
-
-                        const studentQuery = 'INSERT INTO og.student_profiles (account_id, prn, full_name, class_id, roll_no, admission_year) VALUES (?,?,?,?,?,?)';
-
-                        db.query(studentQuery,  [accountId, prn, full_name, class_id, roll_no, admission_year], (err2) => {
-                            if(err2){
-                                console.error(err2);
-                                return db.rollback(() => {
-                                    return res.json(ERROR)
-                                });
-                            }
-
-                            db.commit((errCommit) => {
-                                if (errCommit){
-                                    return db.rollback(() => {
-                                        return res.json({message: "Commit failed"});
-                                    });
-                                }
-
-                                return res.json({
-                                    message: "Student created successfully"
-                                });
-                            });
-                        });
-
-                    } 
-                    
-                    else if (role === "teacher") {
-                        if (!department) {
-                            return db.rollback(() => {
-                                return res.json({ message: "Department required for teacher" });
-                            });
-                        }
-                        const teacherQuery = `
-                            INSERT INTO og.teacher_profiles (account_id, full_name, department)
-                            VALUES (?, ?, ?)
-                        `;
-
-                        db.query(teacherQuery, [accountId, full_name, department], (errTeacher) => {
-                            if (errTeacher) {
-                                console.error(errTeacher);
-                                return db.rollback(() => {
-                                    return res.json({ message: "Error creating teacher profile" });
-                                });
-                            }
-
-                            db.commit((errCommit) => {
-                                if (errCommit){
-                                    return db.rollback(() => {
-                                        return res.json({message: "Commit failed"});
-                                    });
-                                }
-
-                                return res.json({
-                                    message: "Teacher created successfully"
-                                });
-                            });
-                        });
-
-                    } 
-                    
-                    else {
-                        return db.rollback(() => {
-                            return res.json({ message: "Invalid role" });
-                        });
-                    }
-
-                });
-            });
+        res.json({
+            message: role === "student" ? "Student created successfully" : "Teacher created successfully"
         });
-    });
-    }
-    catch (error){
-        console.error(error);
+
+    }catch(err){
+        if (conn) conn.release();
+        console.error(err);
         res.json({message: "Server error"});
     }
 });
@@ -519,30 +377,31 @@ app.get("/debug/env", (req,res)=>{
     });
 });
 //fake
-app.post("/admin/register", (req,res)=>{
+app.post("/admin/register", async (req,res)=>{
     const {email, password} = req.body;
 
-    if(!isEmail(email)||password.length<6){
-        return res.json(INVALID_INPUT);
-    }
-    const ip = req.ip;
-    const Hash = bcrypt.hashSync(password, 5);
+    if(!isEmail(email)||password.length<6) return res.json(INVALID_INPUT);
 
-    const query = `INSERT INTO users.accounts (email, password_hash, status) VALUES (?,?,'active')`;
-    db.query(query, [email, password], (err, result)=>{
-        if(err){
-            console.error(err);
-        }
+    try{
+        await db.execute(
+            `INSERT INTO users.accounts (email, password_hash, status) VALUES (?,?,'active')`,
+            [email, password]
+        );
+
         logActivity(db,{
             activity: "HONEYPOT_ACCOUNT_CREATION",
-            ip_address: ip,
+            ip_address: req.ip,
             result: "CAPTURED",
             source:"HONEYPOT"
         });
+
         return res.json({
             message: "Account created successfully"
         });
-    });
+    }catch(err){
+        console.error(err);
+        res.json({message: "Server error"});
+    }
 });
 //fake
 app.post("/user/upgrade-role", (req,res)=>{
@@ -566,115 +425,122 @@ app.get("/internal/file-access", (req, res) => {
 
     return res.status(404).json({ message: "File not found" });
 });
-app.post("/login", loginLimiter,accountLimiter, (req,res)=>{
-    const {email, password} = req.body;
+app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
+    try{
+        const {email, password} = req.body;
 
-    if(!email || !password){
-        logActivity(db, {
-            activity: "LOGIN_ATTEMPT",
-            ip_address: req.ip,
-            result: "FAILED",
-            source: "AUTH"
-        });
-        return res.json({message: "Invalid credentials"});
-    }
-    if(!isEmail(email) || password.length<6){
-        logActivity(db, {
-            activity: "LOGIN_ATTEMPT",
-            ip_address: req.ip,
-            result: "FAILED",
-            source: "AUTH"
-        });
-        return res.json({message: "Invalid credentials"});
-    }
-    const query = "SELECT * FROM og.accounts WHERE email = ?";
-    db.query(query, [email], async(err, results) =>{
-        if(err){
-            console.error(err);
+        if(!email || !password){
             logActivity(db, {
-            activity: "LOGIN_ATTEMPT",
-            ip_address: req.ip,
-            result: "FAILED",
-            source: "AUTH"
-        });
-            return res.json({message: "Database Error"});
-        }
-        if (results.length==0){
-            logActivity(db, {
-            activity: "LOGIN_ATTEMPT",
-            ip_address: req.ip,
-            result: "FAILED",
-            source: "AUTH"
-        });
-            return res.json({message: "User not found"});
-        }
-        const user = results[0];
-        const isMatch = await bcrypt.compare(password, user.password_hash);
-        if(!isMatch){
-            logActivity(db, {
-            activity: "LOGIN_ATTEMPT",
-            ip_address: req.ip,
-            result: "FAILED",
-            source: "AUTH"
-        });
-            return res.json({message: "Invalid Credentials"});
-        }
-        delete loginAttempts[email];
-        const sessionQuery = 'INSERT INTO admin.session_tracker(account_id, ip_address) VALUES (?,?)';
-        const ip = req.ip;
-
-        db.query(sessionQuery, [user.account_id, ip], (err2, result2)=>{
-            if(err2){
-                console.error(err2);
-                logActivity(db, {
                 activity: "LOGIN_ATTEMPT",
                 ip_address: req.ip,
                 result: "FAILED",
                 source: "AUTH"
             });
-                return res.json({message: "Session creation failed"});
-            }
-            const sessionId = result2.insertId;
-            const updateLastLogin = 'UPDATE og.accounts SET last_login = CURRENT_TIMESTAMP WHERE account_id =?';
-            db.query(updateLastLogin, [user.account_id]);
-            const token = jwt.sign(
-            {   id: user.account_id,
+            return res.json({message: "Invalid credentials"});
+        }
+        if(!isEmail(email) || password.length<6){
+            logActivity(db, {
+                activity: "LOGIN_ATTEMPT",
+                ip_address: req.ip,
+                result: "FAILED",
+                source: "AUTH"
+            });
+            return res.json({message: "Invalid credentials"});
+        }
+
+        const [results] = await db.execute(
+            "SELECT * FROM og.accounts WHERE email = ?",
+            [email]
+        );
+
+        if (results.length==0){
+            logActivity(db, {
+                activity: "LOGIN_ATTEMPT",
+                ip_address: req.ip,
+                result: "FAILED",
+                source: "AUTH"
+            });
+            return res.json({message: "User not found"});
+        }
+
+        const user = results[0];
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+
+        if(!isMatch){
+            logActivity(db, {
+                activity: "LOGIN_ATTEMPT",
+                ip_address: req.ip,
+                result: "FAILED",
+                source: "AUTH"
+            });
+            return res.json({message: "Invalid Credentials"});
+        }
+
+        delete loginAttempts[email];
+
+        const ip = req.ip;
+
+        const [result2] = await db.execute(
+            'INSERT INTO admin.session_tracker(account_id, ip_address) VALUES (?,?)',
+            [user.account_id, ip]
+        );
+
+        const sessionId = result2.insertId;
+
+        await db.execute(
+            'UPDATE og.accounts SET last_login = CURRENT_TIMESTAMP WHERE account_id =?',
+            [user.account_id]
+        );
+
+        const token = jwt.sign(
+            {   
+                id: user.account_id,
                 email: user.email,
                 session_id: sessionId
             },
-                SECRET_KEY,
+            SECRET_KEY,
             {expiresIn:"1h"}
-
         ); 
+
         logActivity(db, {
-                account_id: user.account_id,
-                activity: "LOGIN_SUCCESS",
-                ip_address: req.ip,
-                session_id: sessionId,
-                result: "SUCCESS",
-                source: "AUTH"
-            });
+            account_id: user.account_id,
+            activity: "LOGIN_SUCCESS",
+            ip_address: req.ip,
+            session_id: sessionId,
+            result: "SUCCESS",
+            source: "AUTH"
+        });
+
         res.json({
             message: "Login working",
             token
         });
-            
+
+    }catch(err){
+        console.error(err);
+        logActivity(db, {
+            activity: "LOGIN_ATTEMPT",
+            ip_address: req.ip,
+            result: "FAILED",
+            source: "AUTH"
         });
-    });
+        res.json({message: "Database Error"});
+    }
 });
+app.post("/logout", authMiddleware, logRequest("LOGOUT"), async (req, res) =>{
+    try{
+        const sessionId = req.user.session_id;
 
-app.post("/logout", authMiddleware, logRequest("LOGOUT"), (req, res) =>{
-    const sessionId = req.user.session_id;
+        await db.execute(
+            'UPDATE admin.session_tracker SET logout_time = CURRENT_TIMESTAMP WHERE session_id = ?',
+            [sessionId]
+        );
 
-    const query = 'UPDATE admin.session_tracker SET logout_time = CURRENT_TIMESTAMP WHERE session_id = ?';
-
-    db.query(query, [sessionId], (err) =>{
-        if (err){
-            return res.json({message:"Logout failed"});
-        }
         res.json({message: "Logged out successfully"});
-    });
-    });
+    }catch(err){
+        res.json({message:"Logout failed"});
+    }
+});
 app.listen(3000,() => {
     console.log("Server has started on port 3000");
 });

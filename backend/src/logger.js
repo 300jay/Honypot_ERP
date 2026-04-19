@@ -1,18 +1,20 @@
 const logActivity = (db, logData) => {
-    const{
+    const {
         account_id = null,
         activity,
         ip_address,
         result,
-        source,
-        session_id = null
+        source
     } = logData;
-    const query = 'INSERT INTO admin.activity_logs (account_id, activity, ip_address, result, source) VALUES (?,?,?,?,?)';
-    db.query(query, [account_id,activity, ip_address, result, source], (err) =>{
-        if(err){
-            console.error("Logging failed:", err);
-        }
-    });
+
+    const query = `
+        INSERT INTO admin.activity_logs 
+        (account_id, activity, ip_address, result, source) 
+        VALUES (?,?,?,?,?)
+    `;
+
+    db.execute(query, [account_id, activity, ip_address, result, source])
+      .catch(err => console.error("Logging failed:", err));
 };
 
-module.exports = {logActivity};
+module.exports = { logActivity };
