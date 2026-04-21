@@ -1,6 +1,17 @@
 {
+  "name": "honeypot",
+  "version": "1.0.0",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.20.0"
   }
 }
