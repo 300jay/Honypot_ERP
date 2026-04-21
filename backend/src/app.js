@@ -1,9 +1,37 @@
 const rateLimit = require("express-rate-limit");
 const express = require("express");
 const app = express();
+const path = require("path");
+
+const frontendPath = path.resolve(__dirname, "../../Frontend");
+console.log("Frontend path:", frontendPath);
+
+app.use(express.static(frontendPath));
+const cors = require("cors");   
+app.use(cors()); 
+
 const bcrypt = require("bcrypt");
 const db = require("./db");
 const jwt = require("jsonwebtoken");
+module.exports = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+        return res.json({ message: "Unauthorized" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        req.user = decoded;
+        next();
+    } catch (err) {
+        console.error("JWT ERROR:", err.message);
+        return res.json({ message: "Invalid token" });
+    }
+};
 require("dotenv").config();
 
 const SECRET_KEY = process.env.JWT_SECRET;
@@ -95,8 +123,6 @@ async function logHoneypotEvent(req, eventType, details){
     }
 }
 app.use(express.json());
-app.use("/service/ticket", ticketRoutes);
-// app.use("/service/notifications", notificationRoutes);
 app.use("/manage",adminRoutes);
 
 app.get("/",(req,res) => {
@@ -111,24 +137,89 @@ app.get("/",(req,res) => {
 //     });
 // });
 
-app.get("/student/profile", authMiddleware, requireRole("student"), logRequest("VIEW_PROFILE"), async (req, res)=>{
-    try{
+app.get("/student/profile", authMiddleware, requireRole("student"), logRequest("VIEW_PROFILE"), async (req, res) => {
+    try {
         const accountId = req.user.id;
 
-        const [results] = await db.execute(
-            'SELECT student_id, full_name, prn, class_id, roll_no, admission_year FROM og.student_profiles WHERE account_id = ?',
-            [accountId]
-        );
+        const [rows] = await db.execute(`
+            SELECT 
+                sp.student_id,
+                sp.full_name,
+                sp.prn,
+                sp.class_id,
+                sp.roll_no,
+                sp.admission_year,
+                sp.branch,
+                a.email
+            FROM og.student_profiles sp
+            JOIN og.accounts a 
+                ON sp.account_id = a.account_id
+            WHERE sp.account_id = ?
+        `, [accountId]);
 
-        if (results.length === 0){
-            return res.json({message: "Profile not found"});
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Profile not found" });
         }
 
-        res.json(results[0]);
-    }catch(err){
-        res.json(ERROR);
+        // Clean structured response (important for frontend)
+        const profile = {
+            student_id: rows[0].student_id,
+            full_name: rows[0].full_name,
+            prn: rows[0].prn,
+            class_id: rows[0].class_id,
+            roll_no: rows[0].roll_no,
+            admission_year: rows[0].admission_year,
+            branch: rows[0].branch,
+            email: rows[0].email
+        };
+
+        res.json(profile);
+
+    } catch (err) {
+        console.error("Profile error:", err);
+        res.status(500).json({ message: "Server error" });
     }
 });
+
+app.get("/teacher/profile", authMiddleware, requireRole("teacher"), logRequest("VIEW_PROFILE"), async (req, res) => {
+    try {
+        const accountId = req.user.id;
+
+        const [rows] = await db.execute(`
+            SELECT 
+                tp.teacher_id,
+                tp.full_name,
+                tp.prn,
+                tp.department,
+                a.email
+            FROM og.teacher_profiles tp
+            JOIN og.accounts a 
+                ON tp.account_id = a.account_id
+            WHERE tp.account_id = ?
+        `, [accountId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Profile not found" });
+        }
+
+        // Structured response (same style as student)
+        const profile = {
+            teacher_id: rows[0].teacher_id,
+            full_name: rows[0].full_name,
+            prn: rows[0].prn,
+            department: rows[0].department,
+            email: rows[0].email
+        };
+
+        res.json(profile);
+
+    } catch (err) {
+        console.error("Teacher profile error:", err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+
 app.get("/student/attendance", authMiddleware, requireRole("student"), logRequest("VIEW_ATTENDANCE"), async (req,res)=>{
     try{
         const [results] = await db.execute(
@@ -254,92 +345,151 @@ app.post("/teacher/results", authMiddleware, requireRole("teacher"),logRequest("
     }
 });
 const {isEmail, isNumber, isEnum, isValidDate} = require("./validators");
-app.post("/service/create-user", authMiddleware, requireRole("admin"), logRequest("CREATE_ACCOUNT"), async(req, res) => {
-    let { email, password, full_name, prn, class_id, roll_no, admission_year, role, department } = req.body;
+app.post("/service/create-user", authMiddleware, requireRole("admin"), logRequest("CREATE_ACCOUNT"), async (req, res) => {
 
+    let { email, password, full_name, prn, class_id, roll_no, admission_year, role, department, branch } = req.body;
+
+    // 🔹 Normalize input
     email = email?.trim().toLowerCase();
     full_name = full_name?.trim();
     department = department?.trim();
+    branch = branch?.trim();
 
-    if (!email || !password || !full_name || !role) return res.json({ message: "All fields required" });
-    if(!isEmail(email)||password.length<6) return res.json(INVALID_INPUT);
-    if(!isEnum(role, ["student", "teacher", "admin"])) return res.json ({message: "Invalid role"});
-
-    if(role === "student"){
-        if(!isNumber(class_id)|| !isNumber(roll_no) || !isNumber(admission_year)) return res.json(INVALID_INPUT);
+    //  Basic validation
+    if (!email || !password || !full_name || !role) {
+        return res.json({ message: "All fields required" });
     }
 
-    if(role === "teacher"){
-        if(!department || department.length>100) return res.json(INVALID_INPUT);
+    if (!isEmail(email) || password.length < 6) {
+        return res.json(INVALID_INPUT);
     }
+
+    //  Restrict roles
+    if (!["student", "teacher"].includes(role)) {
+        return res.json({ message: "Invalid role" });
+    }
+
     let conn;
-    try{
-        conn = await db.getConnection();
 
+    try {
+        conn = await db.getConnection();
         await conn.beginTransaction();
 
-        const hashedPassword = password;
+        //  Check duplicate email
+        const [existing] = await conn.execute(
+            "SELECT account_id FROM og.accounts WHERE email = ?",
+            [email]
+        );
 
+        if (existing.length > 0) {
+            await conn.rollback();
+            conn.release();
+            return res.json({ message: "Email already exists" });
+        }
+
+        //  Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        //  Insert account
         const [account] = await conn.execute(
-            'INSERT INTO og.accounts (email, password_hash) VALUES (?, ?)',
+            "INSERT INTO og.accounts (email, password_hash) VALUES (?, ?)",
             [email, hashedPassword]
         );
 
         const accountId = account.insertId;
 
+        //  Get role ID
         const [roleRes] = await conn.execute(
             "SELECT role_id FROM og.access_roles WHERE role_name = ?",
             [role]
         );
 
-        if (roleRes.length ===0){
+        if (roleRes.length === 0) {
             await conn.rollback();
             conn.release();
-            return res.json({message: "Role fetch failed"});
+            return res.json({ message: "Role fetch failed" });
         }
 
+        // 🔗 Map role
         await conn.execute(
-            "INSERT INTO og.account_role_map (account_id, role_id) VALUES (?,?)",
+            "INSERT INTO og.account_role_map (account_id, role_id) VALUES (?, ?)",
             [accountId, roleRes[0].role_id]
         );
 
+        // =========================
+        //  STUDENT
+        // =========================
         if (role === "student") {
-            if (!prn || class_id == null || roll_no == null || admission_year == null){
+
+            if (
+                prn == null ||
+                class_id == null ||
+                roll_no == null ||
+                admission_year == null ||
+                isNaN(prn) ||
+                isNaN(class_id) ||
+                isNaN(roll_no) ||
+                isNaN(admission_year)
+            ) {
                 await conn.rollback();
                 conn.release();
-                return res.json({ message: "Student fields missing" });
+                return res.json(INVALID_INPUT);
+            }
+
+            // 🔍 Check duplicate PRN
+            const [existingPrn] = await conn.execute(
+                "SELECT student_id FROM og.student_profiles WHERE prn = ?",
+                [prn]
+            );
+
+            if (existingPrn.length > 0) {
+                await conn.rollback();
+                conn.release();
+                return res.json({ message: "PRN already exists" });
             }
 
             await conn.execute(
-                'INSERT INTO og.student_profiles (account_id, prn, full_name, class_id, roll_no, admission_year) VALUES (?,?,?,?,?,?)',
-                [accountId, prn, full_name, class_id, roll_no, admission_year]
+                `INSERT INTO og.student_profiles 
+                (account_id, prn, full_name, class_id, roll_no, admission_year, branch) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [accountId, prn, full_name, class_id, roll_no, admission_year, branch]
             );
         }
 
+        // =========================
+        //  TEACHER
+        // =========================
         if (role === "teacher") {
-            if (!department){
+
+            if (!department || department.length > 100) {
                 await conn.rollback();
                 conn.release();
-                return res.json({ message: "Department required for teacher" });
+                return res.json(INVALID_INPUT);
             }
 
             await conn.execute(
-                'INSERT INTO og.teacher_profiles (account_id, full_name, department) VALUES (?, ?, ?)',
+                `INSERT INTO og.teacher_profiles 
+                (account_id, full_name, department) 
+                VALUES (?, ?, ?)`,
                 [accountId, full_name, department]
             );
         }
 
+       
         await conn.commit();
         conn.release();
 
         res.json({
-            message: role === "student" ? "Student created successfully" : "Teacher created successfully"
+            message: `${role.charAt(0).toUpperCase() + role.slice(1)} created successfully`
         });
 
-    }catch(err){
-        if (conn) conn.release();
+    } catch (err) {
+        if (conn) {
+            await conn.rollback();
+            conn.release();
+        }
         console.error(err);
-        res.json({message: "Server error"});
+        res.json({ message: "Server error" });
     }
 });
 //fake
@@ -449,7 +599,11 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
         }
 
         const [results] = await db.execute(
-            "SELECT * FROM og.accounts WHERE email = ?",
+            `SELECT a.account_id, a.email, a.password_hash, r.role_name
+            FROM og.accounts a
+            JOIN og.account_role_map arm ON a.account_id = arm.account_id
+            JOIN og.access_roles r ON arm.role_id = r.role_id
+            WHERE a.email = ?`,
             [email]
         );
 
@@ -496,7 +650,8 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
             {   
                 id: user.account_id,
                 email: user.email,
-                session_id: sessionId
+                session_id: sessionId,
+                role: user.role_name   // 🔥 ADD THIS
             },
             SECRET_KEY,
             {expiresIn:"1h"}
@@ -513,7 +668,8 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
 
         res.json({
             message: "Login working",
-            token
+            token,
+            role: user.role_name   // 🔥 ADD THIS
         });
 
     }catch(err){
@@ -544,3 +700,90 @@ app.post("/logout", authMiddleware, logRequest("LOGOUT"), async (req, res) =>{
 app.listen(3000,() => {
     console.log("Server has started on port 3000");
 });
+
+
+app.put("/service/update-user/:id", authMiddleware, requireRole("admin"), async (req, res) => {
+    const accountId = req.params.id;
+
+    let { full_name, email, role, department, branch } = req.body;
+
+    full_name = full_name?.trim();
+    email = email?.trim().toLowerCase();
+    department = department?.trim();
+    branch = branch?.trim();
+
+    if (!full_name || !email || !role) {
+        return res.json({ message: "All fields required" });
+    }
+
+    try {
+        const conn = await db.getConnection();
+        await conn.beginTransaction();
+
+        // update email
+        await conn.execute(
+            "UPDATE og.accounts SET email = ? WHERE account_id = ?",
+            [email, accountId]
+        );
+
+        if (role === "teacher") {
+            await conn.execute(
+                "UPDATE og.teacher_profiles SET full_name = ?, department = ? WHERE account_id = ?",
+                [full_name, department, accountId]
+            );
+        }
+
+        if (role === "student") {
+            await conn.execute(
+                "UPDATE og.student_profiles SET full_name = ?, branch = ? WHERE account_id = ?",
+                [full_name, branch, accountId]
+            );
+        }
+
+        await conn.commit();
+        conn.release();
+
+        res.json({ message: "User updated successfully" });
+
+    } catch (err) {
+        console.error(err);
+        res.json({ message: "Server error" });
+    }
+});
+
+app.get("/service/get-user/:id", authMiddleware, requireRole("admin"), async (req, res) => {
+    const id = req.params.id;
+
+    try {
+        const [rows] = await db.execute(`
+            SELECT a.account_id, a.email, r.role_name,
+                   sp.full_name AS student_name, sp.prn, sp.branch,
+                   tp.full_name AS teacher_name, tp.department
+            FROM og.accounts a
+            JOIN og.account_role_map arm ON a.account_id = arm.account_id
+            JOIN og.access_roles r ON arm.role_id = r.role_id
+            LEFT JOIN og.student_profiles sp ON a.account_id = sp.account_id
+            LEFT JOIN og.teacher_profiles tp ON a.account_id = tp.account_id
+            WHERE a.account_id = ? OR sp.prn = ?
+        `, [id, id]);
+
+        if (rows.length === 0) return res.json({ message: "User not found" });
+
+        const user = rows[0];
+
+        res.json({
+            account_id: user.account_id,
+            email: user.email,
+            role: user.role_name,
+            full_name: user.student_name || user.teacher_name,
+            department: user.department,
+            branch: user.branch
+        });
+
+    } catch (err) {
+        res.json({ message: "Server error" });
+    }
+});
+
+
+app.use("/api/tickets", ticketRoutes);

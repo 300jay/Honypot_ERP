@@ -132,10 +132,32 @@
                                 <p class="panel-sub">Actions that matter most for admin workflow.</p>
                             </div>
                         </div>
-                        <div class="action-row" style="flex-direction: column; align-items: flex-start; gap: 12px;">
-                            <button class="primary-btn" onclick="openModal('user')" style="width:100%;">Add User</button>
-                            <button class="secondary-btn" onclick="openModal('notification')" style="width:100%;">Send Notification</button>
-                            <a href="tickets.html" class="secondary-btn" style="text-decoration:none; text-align:center; display:block; width:100%;">View Alerts</a>
+                       <div class="action-row" style="flex-direction: column; align-items: center; gap: 12px;">
+
+                            <button class="primary-btn" onclick="openModal('user')" style="width: 90%; justify-content: center;">
+                                Add User
+                            </button>
+
+                            <button class="secondary-btn" onclick="openModal('notification')" style="width: 90%; justify-content: center;">
+                                Send Notification
+                            </button>
+
+                            <a href="tickets.html" class="secondary-btn" 
+                            style="text-decoration:none; text-align:center; display:block; width:90%;">
+                                View Alerts
+                            </a>
+
+                            <button 
+                                type="button" 
+                                class="secondary-btn" 
+                                style="color: #ff9a9a; border-color: rgba(239, 68, 68, 0.2); width: 90%; justify-content: center;" 
+                                onclick="logout()"
+                            >
+                                Sign Out
+                            </button>
+
+                        </div>
+
                         </div>
                     </section>
                 </div>
@@ -147,6 +169,18 @@
     <div id="toastRoot"></div>
 
     <script>
+
+        function toggleFields() {
+            const role = document.getElementById("role")?.value;
+
+            const student = document.getElementById("studentFields");
+            const teacher = document.getElementById("teacherFields");
+
+            if (!student || !teacher) return;
+
+            student.style.display = role === "student" ? "block" : "none";
+            teacher.style.display = role === "teacher" ? "block" : "none";
+        }
         // --- Modal System ---
         function openModal(type) {
             const modalRoot = document.getElementById("modalRoot");
@@ -156,19 +190,29 @@
                 user: {
                     title: "Add User",
                     body: `
-                        <div class="modal-grid">
-                            <div class="form-grid">
-                                <input class="input" placeholder="Full name" />
-                                <select class="select">
-                                    <option>Student</option>
-                                    <option>Teacher</option>
-                                    <option>Admin</option>
-                                </select>
-                                <input class="input" placeholder="Department / Class" />
+                        <div class="form-grid">
+                            <input id="full_name" class="input" placeholder="Full Name" />
+                            <input id="email" class="input" placeholder="Email" />
+                            <input id="password" type="password" class="input" placeholder="Password" />
+
+                            <select id="role" class="select" onchange="toggleFields()">
+                                <option value="">Select Role</option>
+                                <option value="student">Student</option>
+                                <option value="teacher">Teacher</option>
+                            </select>
+
+                            <!-- Student Fields -->
+                            <div id="studentFields" style="display:none;">
+                                <input id="prn" class="input" placeholder="PRN" />
+                                <input id="class_id" class="input" placeholder="Class ID" />
+                                <input id="roll_no" class="input" placeholder="Roll No" />
+                                <input id="admission_year" class="input" placeholder="Admission Year" />
+                                <input id="branch" class="input" placeholder="Branch" />
                             </div>
-                            <div class="panel" style="margin:0; margin-top: 16px;">
-                                <h3 class="panel-title">Tip</h3>
-                                <p class="panel-sub">Use clear role assignment to keep the dashboard organized and secure.</p>
+
+                            <!-- Teacher Fields -->
+                            <div id="teacherFields" style="display:none;">
+                                <input id="department" class="input" placeholder="Department" />
                             </div>
                         </div>
                     `,
@@ -212,6 +256,14 @@
                 </div>
             `;
 
+            setTimeout(() => {
+                const roleEl = document.getElementById("role");
+
+                if (roleEl) {
+                    roleEl.addEventListener("change", toggleFields);
+                }
+            }, 0);
+
             // Click outside the modal card to close it
             document.getElementById("modalBackdrop").addEventListener("click", (e) => {
                 if (e.target.id === "modalBackdrop") closeModal();
@@ -221,11 +273,6 @@
         function closeModal() {
             const modalRoot = document.getElementById("modalRoot");
             if (modalRoot) modalRoot.innerHTML = "";
-        }
-
-        function submitModal(actionName) {
-            closeModal();
-            showToast(actionName, `${actionName} triggered successfully.`);
         }
 
         // --- Toast Notifications ---
@@ -283,6 +330,91 @@
                 }
             });
         });
-    </script>
+        async function submitModal(actionName) {
+
+            if (actionName !== "Create User") {
+                closeModal();
+                showToast(actionName, "Done");
+                return;
+            }
+
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                showToast("Error", "Session expired. Please login again.");
+                window.location.href = "/signin.html";
+                return;
+            }
+
+            let data = {
+                full_name: document.getElementById("full_name").value,
+                email: document.getElementById("email").value,
+                password: document.getElementById("password").value,
+                role: document.getElementById("role").value
+            };
+
+            if (data.role === "student") {
+                data.prn = Number(document.getElementById("prn").value);
+                data.class_id = Number(document.getElementById("class_id").value);
+                data.roll_no = Number(document.getElementById("roll_no").value);
+                data.admission_year = Number(document.getElementById("admission_year").value);
+                data.branch = document.getElementById("branch").value;
+            }
+
+            if (data.role === "teacher") {
+                data.department = document.getElementById("department").value;
+            }
+
+            console.log(data); 
+
+            try {
+                const res = await fetch("/service/create-user", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + token
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+
+                if (result.message.toLowerCase().includes("success")) {
+                    showToast("Success", result.message);
+                    closeModal();
+                } else {
+                    showToast("Error", result.message);
+                }
+
+            } catch (err) {
+                console.error(err);
+                showToast("Error", "Request failed");
+            }
+        }
+
+        async function logout() {
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                window.location.href = "/signin.html";
+                return;
+            }
+
+            try {
+                await fetch("/logout", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                });
+            } catch (err) {
+                console.error("Logout error:", err);
+            }
+
+            localStorage.removeItem("token");
+            window.location.href = "/signin.html";
+        }
+    
+</script>
 </body>
 </html>

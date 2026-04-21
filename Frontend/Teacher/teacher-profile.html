@@ -82,17 +82,18 @@
 
                 <div class="panel" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 16px;">
                     <div style="display: flex; gap: 24px; align-items: center">
-                        <div style="width: 86px; height: 86px; border-radius: 50%; background: linear-gradient(145deg, var(--accent), var(--accent-2)); display: grid; place-items: center; font-size: 32px; font-weight: 800; color: white; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);">
+                        
+                        <div id="avatar" style="width: 86px; height: 86px; border-radius: 50%; background: linear-gradient(145deg, var(--accent), var(--accent-2)); display: grid; place-items: center; font-size: 32px; font-weight: 800; color: white; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);">
                             VP
                         </div>
+
                         <div>
-                            <h3 style="margin: 0; font-size: 1.5rem; letter-spacing: -0.5px;">Vishal Pillai</h3>
-                            <p style="margin: 4px 0 0; color: var(--muted); font-size: 0.95rem;">Professor • Computer Science • MIT-WPU</p>
+                            <h3 id="teacherName" style="margin: 0; font-size: 1.5rem;">Loading...</h3>
                         </div>
+
                     </div>
-                    <div class="hero-meta" style="margin: 0;">
-                       
-                    </div>
+
+                    <div class="hero-meta" style="margin: 0;"></div>
                 </div>
 
                 <div class="grid-2">
@@ -107,23 +108,20 @@
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                                 <div style="grid-column: 1 / -1;">
                                     <label style="color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Full Name</label>
-                                    <input type="text" class="input" value="Vishal Pillai" />
+                                    <input id="fullName" type="text" class="input" readonly />
                                 </div>
                                 <div style="grid-column: 1 / -1;">
                                     <label style="color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Email Address</label>
-                                    <input type="email" class="input" value="vishal.pillai@campusflow.edu" />
+                                    <input id="email" type="email" class="input" readonly />
                                 </div>
                                 <div>
                                     <label style="color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">PRN</label>
-                                    <input type="text" class="input" value="EMP-2015-089" />
+                                    <input id="prn" type="text" class="input" readonly />
                                 </div>
                                 <div>
                                     <label style="color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Department</label>
-                                    <input type="text" class="input" value="Computer Science" />
+                                    <input id="department" type="text" class="input" readonly />
                                 </div>
-                            </div>
-                            <div class="action-row" style="margin-top: 10px;">
-                                <button type="submit" class="primary-btn">Save Changes</button>
                             </div>
                         </form>
                     </section>
@@ -136,7 +134,12 @@
                             </div>
                         </div>
                         <div class="action-row">
-                            <button type="button" class="secondary-btn" style="color: #ff9a9a; border-color: rgba(239, 68, 68, 0.2); width: 100%; justify-content: center;" onclick="showToast('Signed Out', 'You have been securely logged out.')">
+                            <button 
+                                type="button" 
+                                class="secondary-btn" 
+                                style="color: #ff9a9a; border-color: rgba(239, 68, 68, 0.2); width: 100%; justify-content: center;" 
+                                onclick="logout()"
+                            >
                                 Sign Out
                             </button>
                         </div>
@@ -150,5 +153,94 @@
     <div id="toastRoot"></div>
     
     <script src="teacher-scripts.js"></script>
+    <script>
+    function parseJwt(token) {
+        return JSON.parse(atob(token.split('.')[1]));
+    }
+
+    async function loadTeacherProfile() {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            window.location.href = "/signin.html";
+            return;
+        }
+
+        const user = parseJwt(token);
+
+        if (user.role !== "teacher") {
+            window.location.href = "/signin.html";
+            return;
+        }
+
+        try {
+            const res = await fetch("/teacher/profile", {
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            const data = await res.json();
+            console.log(data);
+
+            // Set values
+            document.getElementById("fullName").value = data.full_name;
+            document.getElementById("email").value = data.email;
+            document.getElementById("department").value = data.department;
+            document.getElementById("prn").value = data.prn;
+
+            // Set name in header
+            document.getElementById("teacherName").innerText = data.full_name;
+
+            // Avatar initials
+            const initials = data.full_name
+                ?.split(" ")
+                .map(word => word[0])
+                .join("")
+                .toUpperCase() || "NA";
+
+            document.getElementById("avatar").innerText = initials;
+
+        } catch (err) {
+            console.error("Error loading profile:", err);
+        }
+    }
+
+    //  Run on page load
+    document.addEventListener("DOMContentLoaded", () => {
+        loadTeacherProfile();
+    });
+
+    async function logout() {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            window.location.href = "/signin.html";
+            return;
+        }
+
+        try {
+            await fetch("/logout", {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+        } catch (err) {
+            console.error("Logout error:", err);
+        }
+
+        // 🔥 IMPORTANT: clear token from frontend
+        localStorage.removeItem("token");
+
+        // Optional toast
+        showToast("Signed Out", "You have been securely logged out.");
+
+        // Redirect
+        setTimeout(() => {
+            window.location.href = "/signin.html";
+        }, 1000);
+    }
+    </script>
 </body>
 </html>

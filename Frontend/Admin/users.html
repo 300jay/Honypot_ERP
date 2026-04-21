@@ -81,18 +81,17 @@
                         <div class="action-row">
                            <button class="primary-btn" onclick="openModal('user')">Add User</button>
                            <button class="secondary-btn" onclick="openModal('editUser')">Edit User</button>
-                           <button class="secondary-btn" onclick="showToast('Bulk update', 'Bulk update mode opened.')">Bulk Update</button>
                         </div>
                         <div style="height:14px"></div>
                         <div class="grid-2">
                             <div class="stat-card">
                                 <p class="stat-label">Students</p>
-                                <h3 class="stat-value" style="font-size:1.45rem" data-target="1200">1,200</h3>
+                                <h3 class="stat-value" style="font-size:1.45rem" data-target="12">1,200</h3>
                                 <div class="stat-foot">Active and enrolled</div>
                             </div>
                             <div class="stat-card">
                                 <p class="stat-label">Teachers</p>
-                                <h3 class="stat-value" style="font-size:1.45rem" data-target="75">75</h3>
+                                <h3 class="stat-value" style="font-size:1.45rem" data-target="4">75</h3>
                                 <div class="stat-foot">Teaching staff</div>
                             </div>
                         </div>
@@ -106,6 +105,19 @@
     <div id="toastRoot"></div>
     
     <script>
+
+        function toggleFields() {
+            const role = document.getElementById("role")?.value;
+
+            const student = document.getElementById("studentFields");
+            const teacher = document.getElementById("teacherFields");
+
+            if (!student || !teacher) return;
+
+            student.style.display = role === "student" ? "block" : "none";
+            teacher.style.display = role === "teacher" ? "block" : "none";
+        }
+
         // --- Modal System ---
         function openModal(type) {
             const modalRoot = document.getElementById("modalRoot");
@@ -117,13 +129,27 @@
                     body: `
                         <div class="modal-grid">
                             <div class="form-grid">
-                                <input class="input" placeholder="Full name" />
-                                <select class="select">
-                                    <option>Student</option>
-                                    <option>Teacher</option>
-                                    <option>Admin</option>
+                                <input id="full_name" class="input" placeholder="Full Name" />
+                                <input id="email" class="input" placeholder="Email" />
+                                <input id="password" type="password" class="input" placeholder="Password" />
+
+                                <select id="role" class="select" onchange="toggleFields()">
+                                    <option value="">Select Role</option>
+                                    <option value="student">Student</option>
+                                    <option value="teacher">Teacher</option>
                                 </select>
-                                <input class="input" placeholder="Department / Class" />
+
+                                <div id="studentFields" style="display:none;">
+                                    <input id="prn" class="input" placeholder="PRN" />
+                                    <input id="class_id" class="input" placeholder="Class ID" />
+                                    <input id="roll_no" class="input" placeholder="Roll No" />
+                                    <input id="admission_year" class="input" placeholder="Admission Year" />
+                                    <input id="branch" class="input" placeholder="Branch" />
+                                </div>
+
+                                <div id="teacherFields" style="display:none;">
+                                    <input id="department" class="input" placeholder="Department" />
+                                </div>
                             </div>
                             <div class="panel" style="margin:0; margin-top: 16px;">
                                 <h3 class="panel-title">Tip</h3>
@@ -144,39 +170,38 @@
                             <div style="padding-bottom: 24px; border-bottom: 1px solid var(--border);">
                                 <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; display: block;">Search by PRN / Employee ID</label>
                                 <div style="display: flex; gap: 12px; align-items: center;">
-                                    <input class="input" placeholder="e.g. 1234567890" value="1234567890" style="max-width: 250px;" />
-                                    <button class="secondary-btn" type="button" onclick="showToast('User Found', 'Loaded profile details.')">Search</button>
+                                    <input id="search_id" class="input" placeholder="e.g. 1234567890" style="max-width: 250px;" />
+                                    <button class="secondary-btn" type="button" onclick="searchUser()">Search</button>
                                 </div>
                             </div>
 
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                                 <div style="grid-column: 1 / -1;">
                                     <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">Full Name</label>
-                                    <input type="text" class="input" value="Aman Sharma" style="width: 100%;" />
+                                    <input id="edit_full_name" type="text" class="input" style="width: 100%;" />
                                 </div>
                                 
                                 <div>
                                     <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">Role</label>
-                                    <select class="select" style="width: 100%;">
-                                        <option selected>Student</option>
-                                        <option>Teacher</option>
-                                        <option>Admin</option>
+                                    <select id="edit_role" class="select" style="width: 100%;">
+                                        <option value="student">Student</option>
+                                        <option value="teacher">Teacher</option>
                                     </select>
                                 </div>
                                 
                                 <div>
                                     <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">Department</label>
-                                    <input type="text" class="input" value="B.Sc IT" style="width: 100%;" />
+                                    <input id="edit_department" type="text" class="input" style="width: 100%;" />
                                 </div>
 
                                 <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 150px 1fr; gap: 20px; align-items: start;">
                                     <div>
                                         <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">PRN / ID</label>
-                                        <input type="tel" class="input" value="12345" style="width: 100%;" />
+                                        <input id="edit_id" type="tel" class="input" style="width: 100%;" />
                                     </div>
                                     <div>
                                         <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">Email Address</label>
-                                        <input type="email" class="input" value="aman@campusflow.edu" style="width: 100%;" />
+                                        <input id="edit_email" type="email" class="input" style="width: 100%;" />
                                     </div>
                                 </div>
 
@@ -311,6 +336,120 @@
                 }
             });
         });
+        async function submitModal(actionName) {
+
+            const token = localStorage.getItem("token");
+
+            // =========================
+            // CREATE USER
+            // =========================
+            if (actionName === "Create User") {
+
+                let data = {
+                    full_name: document.getElementById("full_name").value,
+                    email: document.getElementById("email").value,
+                    password: document.getElementById("password").value,
+                    role: document.getElementById("role").value
+                };
+
+                if (data.role === "student") {
+                    data.prn = Number(document.getElementById("prn").value);
+                    data.class_id = Number(document.getElementById("class_id").value);
+                    data.roll_no = Number(document.getElementById("roll_no").value);
+                    data.admission_year = Number(document.getElementById("admission_year").value);
+                    data.branch = document.getElementById("branch").value;
+                }
+
+                if (data.role === "teacher") {
+                    data.department = document.getElementById("department").value;
+                }
+
+                const res = await fetch("/service/create-user", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + token
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+                showToast("Create User", result.message);
+                closeModal();
+            }
+
+            // =========================
+            // UPDATE USER
+            // =========================
+            else if (actionName === "Save Changes") {
+
+                const id = document.getElementById("edit_id").value;
+                const role = document.getElementById("edit_role").value;
+
+                let data = {
+                    full_name: document.getElementById("edit_full_name").value,
+                    email: document.getElementById("edit_email").value,
+                    role: role
+                };
+
+                if (role === "teacher") {
+                    data.department = document.getElementById("edit_department").value;
+                } else {
+                    data.branch = document.getElementById("edit_department").value;
+                }
+
+                const res = await fetch(`/service/update-user/${id}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + token
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+
+                showToast("Update User", result.message);
+                closeModal();
+            }
+        }
+
+    async function searchUser() {
+        const id = document.getElementById("search_id").value;
+        const token = localStorage.getItem("token");
+
+        if (!id) {
+            showToast("Error", "Enter ID");
+            return;
+        }
+
+        const res = await fetch(`/service/get-user/${id}`, {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        });
+
+        const data = await res.json();
+
+        if (data.message) {
+            showToast("Error", data.message);
+            return;
+        }
+
+        document.getElementById("edit_full_name").value = data.full_name;
+        document.getElementById("edit_email").value = data.email;
+        document.getElementById("edit_role").value = data.role;
+        document.getElementById("edit_id").value = data.account_id;
+
+        if (data.role === "teacher") {
+            document.getElementById("edit_department").value = data.department;
+        } else {
+            document.getElementById("edit_department").value = data.branch;
+        }
+
+        showToast("Success", "User loaded");
+    }
+
     </script>
 </body>
 </html>

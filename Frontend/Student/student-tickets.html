@@ -45,11 +45,7 @@
 
                     <section class="panel">
                         <div class="panel-head"><div><h3 class="panel-title">Previous Tickets</h3><p class="panel-sub">Track your support history.</p></div></div>
-                        <div class="list">
-                            <div class="list-item"><div><strong>Result mismatch</strong><p>Resolved yesterday</p></div><span class="badge good">Closed</span></div>
-                            <div class="list-item"><div><strong>Timetable doubt</strong><p>Waiting for reply</p></div><span class="badge warn">Open</span></div>
-                            <div class="list-item"><div><strong>Attendance query</strong><p>Seen by admin</p></div><span class="badge info">Pending</span></div>
-                        </div>
+                        <div class="list" id="ticketList"></div>
                     </section>
                 </div>
             </section>
@@ -57,5 +53,179 @@
     </div>
     <div id="modalRoot"></div><div id="toastRoot"></div>
     <script src="student-scripts.js"></script>
+    <script>
+        // =====================
+        // LOAD MY TICKETS
+        // =====================
+        async function loadMyTickets() {
+            const token = localStorage.getItem("token");
+
+            try {
+                const res = await fetch("/api/tickets/my", {
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                });
+
+                const tickets = await res.json();
+
+                const container = document.getElementById("ticketList");
+                if (!container) return;
+
+                container.innerHTML = "";
+
+                tickets.forEach(ticket => {
+                    let statusText = "Open";
+                    let statusClass = "warn";
+
+                    if (ticket.assigned_to) {
+                        statusText = "Pending";
+                        statusClass = "info";
+                    }
+
+                    if (ticket.status === "closed") {
+                        statusText = "Closed";
+                        statusClass = "good";
+                    }
+
+                    const div = document.createElement("div");
+                    div.className = "list-item";
+
+                    div.innerHTML = `
+                        <div>
+                            <strong>${ticket.subject}</strong>
+                            <p>${ticket.description}</p>
+                        </div>
+                        <span class="badge ${statusClass}">${statusText}</span>
+                    `;
+
+                    div.onclick = () => openTicket(ticket.ticket_id);
+
+                    container.appendChild(div);
+                });
+
+            } catch (err) {
+                console.error("Ticket load error:", err);
+            }
+        }
+
+        // =====================
+        // CREATE TICKET (HOOK INTO EXISTING MODAL)
+        // =====================
+        async function createTicketFromModal() {
+            const token = localStorage.getItem("token");
+
+            const subject = document.querySelector("#ticketSubject")?.value;
+            const description = document.querySelector("#ticketDescription")?.value;
+            const priority = document.querySelector("#ticketPriority")?.value;
+
+            if (!subject || !description) {
+                showToast("Error", "Fill all fields");
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/tickets/create", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + token
+                    },
+                    body: JSON.stringify({ subject, description, priority })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    showToast("Success", "Ticket created");
+                    closeModal();
+                    loadMyTickets();
+                } else {
+                    showToast("Error", data.message);
+                }
+
+            } catch (err) {
+                console.error("Create ticket error:", err);
+            }
+        }
+
+        // =====================
+        // OPEN TICKET (SAFE)
+        // =====================
+        async function openTicket(id) {
+            const token = localStorage.getItem("token");
+
+            try {
+                const res = await fetch(`/api/tickets/${id}`, {
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                });
+
+                const data = await res.json();
+
+                // Use your existing toast instead of new UI
+                showToast("Ticket", data.ticket.subject);
+
+            } catch (err) {
+                console.error("Open ticket error:", err);
+            }
+        }
+
+        // =====================
+        // HOOK INTO EXISTING MODAL SYSTEM
+        // =====================
+
+        // Extend your modal config safely
+        const originalOpenModal = window.openModal;
+
+        window.openModal = function(type) {
+            if (type === "ticket") {
+                const modalRoot = document.getElementById("modalRoot");
+
+                modalRoot.innerHTML = `
+                    <div class="modal-backdrop" id="modalBackdrop">
+                        <div class="modal">
+                            <div class="modal-head">
+                                <h3>Create Ticket</h3>
+                                <button class="icon-btn" onclick="closeModal()">✕</button>
+                            </div>
+
+                            <div class="modal-body">
+                                <input id="ticketSubject" class="input" placeholder="Subject" />
+                                <textarea id="ticketDescription" class="textarea" placeholder="Description"></textarea>
+                                <select id="ticketPriority" class="select">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+
+                            <div class="modal-foot">
+                                <button class="secondary-btn" onclick="closeModal()">Cancel</button>
+                                <button class="primary-btn" onclick="createTicketFromModal()">Create</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById("modalBackdrop").addEventListener("click", (e) => {
+                    if (e.target.id === "modalBackdrop") closeModal();
+                });
+
+                return;
+            }
+
+            // fallback to original modal
+            if (originalOpenModal) originalOpenModal(type);
+        };
+
+        // =====================
+        // AUTO LOAD
+        // =====================
+        document.addEventListener("DOMContentLoaded", () => {
+            loadMyTickets();
+        });
+</script>
 </body>
 </html>

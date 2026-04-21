@@ -98,10 +98,10 @@
                 <p>Please enter your details to sign in.</p>
             </div>
 
-            <form class="form-grid" onsubmit="event.preventDefault(); window.location.href='dashboard.html';">
+            <form class="form-grid" onsubmit="event.preventDefault(); login();">
                 <div style="display: grid; gap: 16px;">
-                    <input type="email" class="input" placeholder="Email address" required>
-                    <input type="password" class="input" placeholder="Password" required>
+                    <input id="email" type="email" class="input" placeholder="Email address" required>
+                    <input id="password" type="password" class="input" placeholder="Password" required>
                 </div>
                 
                 <div class="auth-actions">
@@ -138,5 +138,43 @@
                 : '<i class="fa-solid fa-moon"></i>';
         });
     </script>
+    <script>
+    async function login() {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+
+        const res = await fetch("http://localhost:3000/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        console.log(data);
+
+        if (data.token) {
+            // store
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("role", data.role);
+
+            // redirect
+            if (data.role === "admin") {
+                window.location.href = "/Admin/dashboard.html";
+            } else if (data.role === "student") {
+                window.location.href = "/Student/student-dashboard.html";
+            } else if (data.role === "teacher") {
+                window.location.href = "/Teacher/teacher-dashboard.html";
+            } else {
+                alert("Unknown role");
+            }
+
+        } else {
+            alert(data.message);
+        }
+    }
+    </script>
 </body>
+
 </html>

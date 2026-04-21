@@ -92,3 +92,27 @@ exports.getAllUsers = async(req, res) => {
         res.status(500).json({message: "Server error"});
     }
 };
+
+exports.getMyNotifications = async (req, res) => {
+    try {
+        const [rows] = await db.execute(`
+            SELECT 
+                n.notification_id,
+                n.title,
+                n.message,
+                n.type,
+                n.created_at,
+                nr.is_read
+            FROM notifications n
+            JOIN notification_recipients nr 
+                ON n.notification_id = nr.notification_id
+            WHERE nr.account_id = ?
+            ORDER BY n.created_at DESC
+        `, [req.user.id]);
+
+        res.json(rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+};

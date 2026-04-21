@@ -1,17 +1,42 @@
 const db = require("../db");
 
-module.exports = async(req, res, next)=>{
-    try{
-        const ticketId = req.params.id;
-        const [rows] = await db.execute("SELECT * FROM support_tickets WHERE ticket_id=? AND (raised_by=? OR assigned_to=?)",[ticketId, req.user.id, req.user.id]);
-        if (!rows.length){
-            await db.execute("INSERT INTO decoy_events(user_id, event_type, source_ip) VALUES (?,?,?)", [req.user.id, "TICKET_ENUM_ATTEMPT", req.ip]);
-            return res.status(403).json({message: "Unauthorized access to ticket"});
+module.exports = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch ticket
+        const [rows] = await db.execute(
+            "SELECT * FROM support_tickets WHERE ticket_id = ?",
+            [id]
+        );
+
+        // If ticket doesn't exist
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Ticket not found" });
         }
-        req.ticket=rows[0];
+
+        const ticket = rows[0];
+
+        //  Ensure type consistency 
+        const userId = Number(req.user.id);
+
+        // Access checks
+        const isOwner = ticket.raised_by === userId;
+        const isAssigned = ticket.assigned_to === userId;
+        const isAdmin = req.user.role === "admin";
+
+        // Deny if no permission
+        if (!isOwner && !isAssigned && !isAdmin) {
+            return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        // Attach ticket to request
+        req.ticket = ticket;
+
         next();
-    }catch(err){
-        console.error(err);
-        res.status(500).json({message: "Server error"});
+
+    } catch (err) {
+        console.error("Ticket access middleware error:", err);
+        res.status(500).json({ message: "Server error" });
     }
 };

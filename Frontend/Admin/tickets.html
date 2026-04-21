@@ -121,31 +121,7 @@
                                     <th>Status</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>#T-204</td>
-                                    <td>Login access problem</td>
-                                    <td>Student</td>
-                                    <td><span class="badge warn">Open</span></td>
-                                </tr>
-                                <tr>
-                                    <td>#T-198</td>
-                                    <td>Class timing mismatch</td>
-                                    <td>Teacher</td>
-                                    <td><span class="badge info">Pending</span></td>
-                                </tr>
-                                <tr>
-                                    <td>#T-190</td>
-                                    <td>Result edit request</td>
-                                    <td>Student</td>
-                                    <td><span class="badge warn">Open</span></td>
-                                </tr>
-                                <tr>
-                                    <td>#T-178</td>
-                                    <td>Notification not received</td>
-                                    <td>Teacher</td>
-                                    <td><span class="badge good">Closed</span></td>
-                                </tr>
+                            <tbody id="ticketTableBody">
                             </tbody>
                         </table>
                     </div>
@@ -234,9 +210,67 @@
             if (modalRoot) modalRoot.innerHTML = "";
         }
 
-        function submitModal(actionName) {
-            closeModal();
-            showToast(actionName, `${actionName} triggered successfully.`);
+        async function submitModal(actionName) {
+            if (actionName !== "Create User") {
+                closeModal();
+                return;
+            }
+
+            const token = localStorage.getItem("token");
+
+            const inputs = document.querySelectorAll(".modal input, .modal select");
+
+            const full_name = inputs[0].value;
+            const role = inputs[1].value.toLowerCase();
+            const extra = inputs[2].value;
+
+            // basic dummy email/password (you can improve later)
+            const email = full_name.replace(/\s+/g, "").toLowerCase() + "@test.com";
+            const password = "password123";
+
+            let body = {
+                email,
+                password,
+                full_name,
+                role
+            };
+
+            if (role === "student") {
+                body = {
+                    ...body,
+                    prn: Math.floor(Math.random() * 1000000),
+                    class_id: 1,
+                    roll_no: Math.floor(Math.random() * 100),
+                    admission_year: 2024,
+                    branch: extra
+                };
+            }
+
+            if (role === "teacher") {
+                body = {
+                    ...body,
+                    department: extra
+                };
+            }
+
+            const res = await fetch("/service/create-user", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify(body)
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast("Success", data.message);
+                closeModal();
+                loadUsers(); // refresh UI
+            } else {
+                showToast("Error", data.message);
+            }
         }
 
         // --- Toast Notifications ---
@@ -277,7 +311,162 @@
                     link.classList.add("active");
                 }
             });
+            loadAllTickets(); 
         });
+        
+
+        async function loadAllTickets() {
+            const token = localStorage.getItem("token");
+
+            const res = await fetch(`/manage/tickets`, {
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            const tickets = await res.json();
+
+            const tbody = document.getElementById("ticketTableBody");
+            tbody.innerHTML = "";
+
+            tickets.forEach(ticket => {
+                let statusText = "Open";
+                let statusClass = "warn";
+
+                if (ticket.assigned_to) {
+                    statusText = "Assigned";
+                    statusClass = "info";
+                }
+
+                if (ticket.status === "closed") {
+                    statusText = "Closed";
+                    statusClass = "good";
+                }
+
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+                    <td>#T-${ticket.ticket_id}</td>
+                    <td>${ticket.subject}</td>
+                    <td>${ticket.raised_by}</td>
+                    <td><span class="badge ${statusClass}">${statusText}</span></td>
+                `;
+
+                row.onclick = () => openTicket(ticket.ticket_id);
+
+                tbody.appendChild(row);
+            });
+        }
+
+        async function openTicket(id) {
+            const token = localStorage.getItem("token");
+
+            
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            const data = await res.json();
+
+            const modalRoot = document.getElementById("modalRoot");
+
+            modalRoot.innerHTML = `
+            <div class="modal-backdrop" id="modalBackdrop">
+                <div class="modal" style="max-width:650px; display:flex; flex-direction:column;">
+
+                    <div class="modal-head">
+                        <h3>Ticket #${id}</h3>
+                        <button class="icon-btn" onclick="closeModal()">✕</button>
+                    </div>
+
+                    <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+
+                        <div class="ticket-info">
+                            <p><strong>Subject:</strong> ${data.ticket.subject}</p>
+                            <p><strong>Description:</strong> ${data.ticket.description}</p>
+                        </div>
+
+                        <div id="messages" style="
+                            max-height:250px;
+                            overflow-y:auto;
+                            display:flex;
+                            flex-direction:column;
+                            gap:8px;
+                            padding:10px;
+                            background:rgba(255,255,255,0.03);
+                            border-radius:8px;
+                        ">
+                            ${data.messages.map(m => `
+                                <div class="msg-bubble">
+                                    ${m.message}
+                                </div>
+                            `).join("")}
+                        </div>
+
+                        <div class="reply-box" style="display:flex; gap:10px;">
+                            <input id="replyInput" class="input" placeholder="Type your reply..." style="flex:1;" />
+                            <button class="primary-btn" onclick="replyTicket(${id})">Send</button>
+                        </div>
+
+                    </div>
+
+                    <div class="modal-foot" style="justify-content:space-between;">
+                        <button class="secondary-btn" onclick="closeModal()">Close</button>
+                        ${
+                            !data.ticket.assigned_to
+                            ? `<button class="primary-btn" onclick="assignTicket(${id})">Assign to Me</button>`
+                            : `<span class="badge good">Assigned</span>`
+                        }
+                    </div>
+
+                </div>
+            </div>
+            `;
+
+            document.getElementById("modalBackdrop").addEventListener("click", (e) => {
+                if (e.target.id === "modalBackdrop") closeModal();
+            });
+        }
+
+        async function replyTicket(id) {
+            const message = document.getElementById("replyInput").value;
+            const token = localStorage.getItem("token");
+
+            const res = await fetch(`/tickets/${id}/reply`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ message })
+            });
+
+            if (res.ok) {
+                openTicket(id);
+            }
+        }
+
+        async function assignTicket(id) {
+            const token = localStorage.getItem("token");
+
+            const res = await fetch(`/manage/tickets/${id}/assign`, {
+                method: "PATCH",
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast("Assigned", "Ticket assigned to you");
+                loadAllTickets();
+                openTicket(id);
+            } else {
+                showToast("Error", data.message || "Failed");
+            }
+        }
     </script>
 </body>
 </html>

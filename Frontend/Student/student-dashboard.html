@@ -64,5 +64,12 @@
     </div>
     <div id="modalRoot"></div><div id="toastRoot"></div>
     <script src="student-scripts.js"></script>
+    <script>
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        window.location.href = "/signin.html";
+    }
+</script>
 </body>
 </html>
