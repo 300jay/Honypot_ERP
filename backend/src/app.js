@@ -43,6 +43,7 @@ const ERROR = {message: "Error"};
 const ticketRoutes = require("./routes/ticketRoutes");
 // const notificationRoutes = require("./routes/notificationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const timetableRoutes = require("./routes/timetableRoutes");
 
 const authMiddleware= require("./middleware/authMiddleware");
 const requireRole = require("./middleware/roleMiddleware");
@@ -124,6 +125,7 @@ async function logHoneypotEvent(req, eventType, details){
 }
 app.use(express.json());
 app.use("/manage",adminRoutes);
+app.use("/timetable", timetableRoutes);
 
 app.get("/",(req,res) => {
     res.send("Server is running");
