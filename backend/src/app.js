@@ -2,6 +2,7 @@ const rateLimit = require("express-rate-limit");
 const express = require("express");
 const app = express();
 const path = require("path");
+const timetableRoutes = require("./routes/timetableRoutes");
 
 const frontendPath = path.resolve(__dirname, "../../Frontend");
 console.log("Frontend path:", frontendPath);
@@ -13,6 +14,22 @@ app.use(cors());
 const bcrypt = require("bcrypt");
 const db = require("./db");
 const jwt = require("jsonwebtoken");
+
+function isSuspicious(input) {
+    if (!input) return false;
+
+    input = input.toLowerCase();
+
+    return (
+        input.includes(" or ") ||
+        input.includes("1=1") ||
+        input.includes("--") ||
+        input.includes("union") ||
+        input.includes("select") ||
+        input.includes("'")
+    );
+}
+
 module.exports = (req, res, next) => {
     const authHeader = req.headers.authorization;
 
@@ -43,7 +60,6 @@ const ERROR = {message: "Error"};
 const ticketRoutes = require("./routes/ticketRoutes");
 // const notificationRoutes = require("./routes/notificationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-const timetableRoutes = require("./routes/timetableRoutes");
 
 const authMiddleware= require("./middleware/authMiddleware");
 const requireRole = require("./middleware/roleMiddleware");
@@ -125,7 +141,6 @@ async function logHoneypotEvent(req, eventType, details){
 }
 app.use(express.json());
 app.use("/manage",adminRoutes);
-app.use("/timetable", timetableRoutes);
 
 app.get("/",(req,res) => {
     res.send("Server is running");
@@ -225,11 +240,12 @@ app.get("/teacher/profile", authMiddleware, requireRole("teacher"), logRequest("
 app.get("/student/attendance", authMiddleware, requireRole("student"), logRequest("VIEW_ATTENDANCE"), async (req,res)=>{
     try{
         const [results] = await db.execute(
-            `SELECT ar.status, asess.attendance_date, co.course_id, co.class_id
+            `SELECT ar.status, asess.attendance_date, co.class_id, c.course_name
              FROM og.attendance_records ar
              JOIN og.student_profiles sp ON ar.student_id = sp.student_id 
              JOIN og.attendance_sessions asess ON ar.attendance_session_id = asess.attendance_session_id
              JOIN og.course_offerings co ON asess.offering_id = co.offering_id
+             JOIN og.courses c ON co.course_id = c.course_id
              WHERE sp.account_id = ?`,
             [req.user.id]
         );
@@ -241,107 +257,204 @@ app.get("/student/attendance", authMiddleware, requireRole("student"), logReques
 });
 app.get("/student/results", authMiddleware, requireRole("student"), logRequest("VIEW_RESULTS"), async (req, res)=>{
     try{
-        const [results] = await db.execute(
-            'SELECT e.exam_name, e.exam_date, e.max_marks, er.marks_obtained, er.grade FROM og.exam_results er JOIN og.student_profiles sp ON er.student_id = sp.student_id JOIN og.exams e ON er.exam_id = e.exam_id WHERE sp.account_id = ?',
-            [req.user.id]
-        );
+        const [results] = await db.execute(`
+        SELECT 
+            c.course_name,
+            e.exam_name,
+            e.exam_date,
+            e.max_marks,
+            er.marks_obtained,
+            er.grade
+        FROM og.exam_results er
+        JOIN og.student_profiles sp 
+            ON er.student_id = sp.student_id
+        JOIN og.exams e 
+            ON er.exam_id = e.exam_id
+        JOIN og.course_offerings co
+            ON e.offering_id = co.offering_id
+        JOIN og.courses c
+            ON co.course_id = c.course_id
+        WHERE sp.account_id = ?
+    `, [req.user.id]);
 
         res.json(results);
     }catch(err){
         res.json({message:"Error fetching results"});
     }
 });
-app.post("/teacher/attendance", authMiddleware, requireRole("teacher"),logRequest("MARK_ATTENDANCE"), async (req, res) =>{
-    try{
-        const {student_id, attendance_date, status,offering_id} = req.body;
 
-        if(!isNumber(student_id)||!isNumber(offering_id)) return res.json(INVALID_INPUT);
-        if(!isValidDate(attendance_date)) return res.json(INVALID_INPUT);
-        if(!isEnum(status,["present", "absent"])) return res.json(INVALID_INPUT);
-        if (!student_id||!attendance_date||!status||!offering_id) return res.json({message: "All fields required"});
+app.post("/teacher/attendance",
+authMiddleware,
+requireRole("teacher"),
+logRequest("MARK_ATTENDANCE"),
+async (req, res) => {
+    try {
+        const { student_id, attendance_date, status, offering_id } = req.body;
 
+        if (!student_id || !attendance_date || !status || !offering_id) {
+            return res.json({ message: "All fields required" });
+        }
+
+        // get teacher
         const [teacherRes] = await db.execute(
-            'SELECT teacher_id FROM og.teacher_profiles WHERE account_id = ?',
+            `SELECT teacher_id FROM og.teacher_profiles WHERE account_id = ?`,
             [req.user.id]
         );
 
-        if (teacherRes.length===0) return res.json(UNAUTHORIZED);
+        if (teacherRes.length === 0) return res.json({ message: "Unauthorized" });
 
         const teacher_id = teacherRes[0].teacher_id;
 
+        // verify ownership
         const [course] = await db.execute(
-            'SELECT * FROM og.course_offerings where offering_id = ? and teacher_id =?',
+            `SELECT * FROM og.course_offerings 
+             WHERE offering_id = ? AND teacher_id = ?`,
             [offering_id, teacher_id]
         );
 
-        if(course.length === 0) return res.json({message:"Unauthorized"});
+        if (course.length === 0) return res.json({ message: "Unauthorized" });
 
-        const [studentCheck] = await db.execute(
-            'SELECT * FROM og.student_course_enrollments WHERE student_id = ? AND offering_id = ?',
-            [student_id, offering_id]
+        // STEP 1: check existing session
+        const [existingSession] = await db.execute(
+            `SELECT attendance_session_id 
+             FROM og.attendance_sessions 
+             WHERE offering_id = ? AND DATE(attendance_date) = ?`,
+            [offering_id, attendance_date]
         );
 
-        if (studentCheck.length===0) return res.json({message:"Unauthorized"});
+        let sessionId;
 
-        const [session] = await db.execute(
-            'INSERT INTO og.attendance_sessions (offering_id, attendance_date, marked_by) VALUES (?,?,?)',
-            [offering_id, attendance_date, teacher_id]
-        );
+        if (existingSession.length > 0) {
+            sessionId = existingSession[0].attendance_session_id;
+        } else {
+            const [session] = await db.execute(
+                `INSERT INTO og.attendance_sessions 
+                 (offering_id, attendance_date, marked_by)
+                 VALUES (?,?,?)`,
+                [offering_id, attendance_date, teacher_id]
+            );
+            sessionId = session.insertId;
+        }
 
+        // STEP 2: insert or update attendance
         await db.execute(
-            'INSERT INTO og.attendance_records (attendance_session_id, student_id, status) VALUES (?,?,?)',
-            [session.insertId, student_id, status]
+            `INSERT INTO og.attendance_records 
+             (attendance_session_id, student_id, status)
+             VALUES (?,?,?)
+             ON DUPLICATE KEY UPDATE status = VALUES(status)`,
+            [sessionId, student_id, status]
         );
 
-        res.json({message: "Attendance marked successfully"});
-    }catch(err){
+        res.json({ message: "Attendance saved" });
+
+    } catch (err) {
         console.error(err);
-        res.json(ERROR);
+        res.json({ message: "Error" });
     }
 });
-app.post("/teacher/results", authMiddleware, requireRole("teacher"),logRequest("ADD_RESULTS"), async (req, res)=>{
-    try{
-        const {offering_id, student_id, exam_name, exam_date, max_marks, marks_obtained, grade} = req.body;
 
-        if(!offering_id||!student_id|| !exam_name || !exam_date || !max_marks || !marks_obtained || !grade) return res.json(INVALID_INPUT);
-        if(!isNumber(student_id)|| !isNumber(offering_id) || !isNumber(max_marks) || !isNumber(marks_obtained)) return res.json(INVALID_INPUT);
-        if(!isValidDate(exam_date)) return res.json(INVALID_INPUT);
+app.post("/teacher/results", 
+authMiddleware, 
+requireRole("teacher"),
+logRequest("ADD_RESULTS"), 
+async (req, res) => {
 
+    try {
+        const { offering_id, student_id, exam_name, exam_date, max_marks, marks_obtained } = req.body;
+
+        // Validation
+        if (!offering_id || !student_id || !exam_name || !exam_date || !max_marks || !marks_obtained) {
+            return res.json(INVALID_INPUT);
+        }
+
+        if (!isNumber(student_id) || !isNumber(offering_id) || !isNumber(max_marks) || !isNumber(marks_obtained)) {
+            return res.json(INVALID_INPUT);
+        }
+
+        if (!isValidDate(exam_date)) {
+            return res.json(INVALID_INPUT);
+        }
+
+        // Get teacher_id from account
         const [teacherRes] = await db.execute(
             'SELECT teacher_id FROM og.teacher_profiles WHERE account_id = ?',
             [req.user.id]
         );
 
-        if (teacherRes.length===0) return res.json(UNAUTHORIZED);
+        if (teacherRes.length === 0) return res.json(UNAUTHORIZED);
 
         const teacher_id = teacherRes[0].teacher_id;
 
+        // Check if teacher owns this course offering
         const [course] = await db.execute(
             'SELECT * FROM og.course_offerings WHERE offering_id = ? AND teacher_id = ?',
             [offering_id, teacher_id]
         );
 
-        if(course.length===0) return res.json(UNAUTHORIZED);
+        if (course.length === 0) return res.json(UNAUTHORIZED);
 
+        // Check if student is enrolled in this offering
         const [studentCheck] = await db.execute(
-            'SELECT * FROM og.student_course_enrollments WHERE student_id = ? AND offering_id =?',
+            'SELECT * FROM og.student_course_enrollments WHERE student_id = ? AND offering_id = ?',
             [student_id, offering_id]
         );
 
-        if(studentCheck.length===0) return res.json(UNAUTHORIZED);
+        if (studentCheck.length === 0) return res.json(UNAUTHORIZED);
 
-        const [exam] = await db.execute(
-            'INSERT INTO og.exams (offering_id, exam_name, exam_date, max_marks) VALUES (?,?,?,?)',
-            [offering_id, exam_name, exam_date, max_marks]
+        // Grade calculation
+        function getGrade(marks) {
+            if (marks >= 90) return "O";
+            if (marks >= 80) return "A+";
+            if (marks >= 70) return "A";
+            if (marks >= 60) return "B+";
+            if (marks >= 50) return "B";
+            if (marks >= 40) return "C";
+            return "F";
+        }
+
+        const grade = getGrade(marks_obtained);
+
+        // Step 1: Get existing exam or create new one
+        let exam_id;
+
+        const [existingExam] = await db.execute(
+            'SELECT exam_id FROM og.exams WHERE offering_id = ? AND exam_name = ?',
+            [offering_id, exam_name]
         );
 
-        await db.execute(
-            'INSERT INTO og.exam_results (exam_id, student_id, marks_obtained, grade) VALUES (?,?,?,?)',
-            [exam.insertId, student_id, marks_obtained, grade]
+        if (existingExam.length > 0) {
+            exam_id = existingExam[0].exam_id;
+        } else {
+            const [exam] = await db.execute(
+                'INSERT INTO og.exams (offering_id, exam_name, exam_date, max_marks) VALUES (?,?,?,?)',
+                [offering_id, exam_name, exam_date, max_marks]
+            );
+            exam_id = exam.insertId;
+        }
+
+        // Step 2: Insert or update result
+        const [existingResult] = await db.execute(
+            'SELECT result_id FROM og.exam_results WHERE exam_id = ? AND student_id = ?',
+            [exam_id, student_id]
         );
 
-        res.json({message: "Result added successfully"});
-    }catch(err){
+        if (existingResult.length > 0) {
+            // Update existing record
+            await db.execute(
+                'UPDATE og.exam_results SET marks_obtained = ?, grade = ? WHERE exam_id = ? AND student_id = ?',
+                [marks_obtained, grade, exam_id, student_id]
+            );
+        } else {
+            // Insert new record
+            await db.execute(
+                'INSERT INTO og.exam_results (exam_id, student_id, marks_obtained, grade) VALUES (?,?,?,?)',
+                [exam_id, student_id, marks_obtained, grade]
+            );
+        }
+
+        res.json({ message: "Result saved successfully" });
+
+    } catch (err) {
         console.error(err);
         res.json(ERROR);
     }
@@ -532,7 +645,24 @@ app.get("/debug/env", (req,res)=>{
 app.post("/admin/register", async (req,res)=>{
     const {email, password} = req.body;
 
+
+
+    //  STEP 2: normal validation
+    if(!email || !password){
+        return res.json({message: "Invalid credentials"});
+    }
+
+    if(!isEmail(email) || password.length < 6){
+        return res.json({message: "Invalid credentials"});
+    }
+
+
+    
+
     if(!isEmail(email)||password.length<6) return res.json(INVALID_INPUT);
+
+
+    
 
     try{
         await db.execute(
@@ -581,6 +711,41 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
     try{
         const {email, password} = req.body;
 
+        //  Honeypot FIRST (before any validation)
+        if (isSuspicious(email) || isSuspicious(password)) {
+
+    console.log("HONEYPOT TRIGGERED");
+
+    await logHoneypotEvent(req, "LOGIN_BYPASS_ATTEMPT", 
+        `Payload: ${email} | ${password}`
+    );
+
+    try {
+        const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
+
+        await db.execute(`
+            INSERT INTO activity_logs 
+            (account_id, activity, ip_address, result, source)
+            VALUES (?, ?, ?, ?, ?)
+        `, [
+            null,
+            `Suspicious login attempt (honeypot) using email: ${email}`,
+            ip,
+            "blocked",
+            "auth"
+        ]);
+
+    } catch (err) {
+        console.error("Activity log error:", err);
+    }
+
+    return res.json({
+        message: "Login successful",
+        token: "fake-token",
+        role: "admin",
+        redirect: "/Users/dashboard.html"
+    });
+}
         if(!email || !password){
             logActivity(db, {
                 activity: "LOGIN_ATTEMPT",
@@ -616,7 +781,10 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
                 result: "FAILED",
                 source: "AUTH"
             });
-            return res.json({message: "User not found"});
+            // Optional: trap enumeration attempts
+            await logHoneypotEvent(req, "ENUMERATION_ATTEMPT", `Email: ${email}`);
+
+            return res.json({message: "Invalid credentials"});
         }
 
         const user = results[0];
@@ -699,11 +867,10 @@ app.post("/logout", authMiddleware, logRequest("LOGOUT"), async (req, res) =>{
         res.json({message:"Logout failed"});
     }
 });
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+app.listen(3000,() => {
+    console.log("Server has started on port 3000");
 });
+
 
 app.put("/service/update-user/:id", authMiddleware, requireRole("admin"), async (req, res) => {
     const accountId = req.params.id;
@@ -788,14 +955,143 @@ app.get("/service/get-user/:id", authMiddleware, requireRole("admin"), async (re
     }
 });
 
-app.get("/test-db", async (req, res) => {
+app.get("/teacher/students/:offering_id", authMiddleware, requireRole("teacher"), async (req, res) => {
+    const offering_id = req.params.offering_id;
+
     try {
-        const [rows] = await db.execute("SELECT 1");
-        res.json({ success: true, rows });
+        console.log("Fetching students for offering:", offering_id); // debug
+
+        const [rows] = await db.execute(`
+            SELECT sp.student_id, sp.full_name
+            FROM og.student_profiles sp
+            JOIN og.student_course_enrollments sce 
+                ON sp.student_id = sce.student_id
+            WHERE sce.offering_id = ?
+        `, [offering_id]);
+
+        res.json(rows);
+
     } catch (err) {
-        console.error("DB TEST ERROR:", err);
-        res.json({ success: false, error: err.message });
+        console.error(err);
+        res.json({ message: "Error fetching students" });
     }
 });
 
+app.get("/teacher/offerings", authMiddleware, requireRole("teacher"), async (req, res) => {
+    try {
+        const [teacherRes] = await db.execute(
+            'SELECT teacher_id FROM og.teacher_profiles WHERE account_id = ?',
+            [req.user.id]
+        );
+
+        if (teacherRes.length === 0) {
+            return res.json([]);
+        }
+
+        const teacher_id = teacherRes[0].teacher_id;
+
+        const [rows] = await db.execute(`
+            SELECT 
+                co.offering_id,
+                c.course_name
+            FROM og.course_offerings co
+            JOIN og.courses c ON co.course_id = c.course_id
+            WHERE co.teacher_id = ?
+        `, [teacher_id]);
+
+        res.json(rows);
+
+    } catch (err) {
+        console.error(err);
+        res.json([]);
+    }
+});
+
+app.get("/teacher/results/:offering_id", authMiddleware, requireRole("teacher"), async (req, res) => {
+    try {
+        const offering_id = req.params.offering_id;
+
+        const [rows] = await db.execute(`
+            SELECT 
+                sp.student_id,
+                sp.full_name,
+                er.marks_obtained,
+                er.grade
+            FROM og.student_course_enrollments sce
+            JOIN og.student_profiles sp ON sce.student_id = sp.student_id
+            LEFT JOIN og.exams e 
+                ON e.offering_id = sce.offering_id 
+                AND e.exam_name = 'Mid Term'
+            LEFT JOIN og.exam_results er 
+                ON er.exam_id = e.exam_id 
+                AND er.student_id = sp.student_id
+            WHERE sce.offering_id = ?
+        `, [offering_id]);
+
+        res.json(rows);
+
+    } catch (err) {
+        console.error(err);
+        res.json({ message: "Error fetching results" });
+    }
+});
+
+app.get("/teacher/attendance/:offering_id/:date",
+authMiddleware,
+requireRole("teacher"),
+async (req, res) => {
+    try {
+        const { offering_id, date } = req.params;
+
+        const [rows] = await db.execute(
+        `SELECT 
+            s.student_id,
+            s.full_name,
+            COALESCE(ar.status, 'absent') AS status
+        FROM og.student_profiles s
+        JOIN og.student_course_enrollments e ON s.student_id = e.student_id
+        LEFT JOIN og.attendance_sessions asess 
+            ON asess.offering_id = e.offering_id 
+            AND DATE(asess.attendance_date) = ?
+        LEFT JOIN og.attendance_records ar 
+            ON ar.attendance_session_id = asess.attendance_session_id 
+            AND ar.student_id = s.student_id
+        WHERE e.offering_id = ?`,
+        [date, offering_id]
+        );
+
+        res.json(rows);
+
+    } catch (err) {
+        console.error(err);
+        res.json({ message: "Error" });
+    }
+});
+
+app.get("/teacher/timetable", authMiddleware, requireRole("teacher"), async (req, res) => {
+    try {
+        const [rows] = await db.execute(`
+            SELECT 
+                te.day_of_week,
+                te.start_time,
+                te.end_time,
+                c.course_name,
+                te.room_no
+            FROM og.timetable_entries te
+            JOIN og.course_offerings co
+                ON te.offering_id = co.offering_id
+            JOIN og.courses c
+                ON co.course_id = c.course_id
+            JOIN og.teacher_profiles tp
+                ON co.teacher_id = tp.teacher_id
+            WHERE tp.account_id = ?
+        `, [req.user.id]);
+
+        res.json(rows);
+    } catch (err) {
+        console.error("TIMETABLE ERROR:", err);
+        res.json({ message: "Error fetching timetable" });
+    }
+});
 app.use("/api/tickets", ticketRoutes);
+app.use("/timetable", timetableRoutes);
