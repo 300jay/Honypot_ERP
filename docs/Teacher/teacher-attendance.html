@@ -138,9 +138,10 @@
 
 
         const token = localStorage.getItem("token");
+        const API_BASE = "https://honypoterp-production.up.railway.app";
 
         if (!token) {
-            window.location.href = "/signin.html";
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
         }    
         // --- Attendance Logic ---
         // Auto-fill today's date in the date picker
@@ -305,7 +306,7 @@
         async function loadOfferings() {
             const token = localStorage.getItem("token");
 
-            const res = await fetch("http://localhost:3000/teacher/offerings", {
+            const res = await fetch(`${API_BASE}/teacher/offerings`, {
                 headers: {
                     Authorization: "Bearer " + token
                 }
@@ -337,7 +338,7 @@
                 const student_id = row.children[0].innerText;
                 const status = row.querySelector(".status-select").value;
 
-                await fetch("http://localhost:3000/teacher/attendance", {
+                await fetch(`${API_BASE}/teacher/attendance`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -365,7 +366,7 @@
             console.log("Offering:", offering_id, "Date:", date);
 
             const res = await fetch(
-                `http://localhost:3000/teacher/attendance/${offering_id}/${date}`,
+                `${API_BASE}/teacher/attendance/${offering_id}/${date}`,
                 {
                     headers: {
                         Authorization: "Bearer " + token

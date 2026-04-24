@@ -66,14 +66,15 @@
     const token = localStorage.getItem("token");
 
     if (!token) {
-        window.location.href = "/signin.html";
+        window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
     }
 
     
         async function loadTeacherTodayClasses() {
             const token = localStorage.getItem("token");
+            const API_BASE = "https://honypoterp-production.up.railway.app";
 
-            const res = await fetch("http://localhost:3000/teacher/timetable", {
+            const res = await fetch(`${API_BASE}/teacher/timetable`, {
                 headers: {
                     Authorization: "Bearer " + token
                 }

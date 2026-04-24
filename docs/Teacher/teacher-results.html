@@ -66,13 +66,14 @@
     <script>
 
         const token = localStorage.getItem("token");
+        const API_BASE = "https://honypoterp-production.up.railway.app";
 
         if (!token) {
-            window.location.href = "/signin.html";
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
         }
 
         async function loadStudents(offering_id) {
-            const res = await fetch(`/teacher/results/${offering_id}`, {
+            const res = await fetch(`${API_BASE}/teacher/results/${offering_id}`, {
                 headers: {
                     "Authorization": "Bearer " + localStorage.getItem("token")
                 }
@@ -100,7 +101,7 @@
             attachGradeLogic();
         }
         async function loadOfferings() {
-            const res = await fetch("/teacher/offerings", {
+            const res = await fetch(`${API_BASE}/teacher/offerings`, {
                 headers: {
                     "Authorization": "Bearer " + localStorage.getItem("token")
                 }
@@ -146,7 +147,7 @@
 
                 if (isNaN(marks)) continue;
 
-                await fetch("/teacher/results", {
+                await fetch(`${API_BASE}/teacher/results`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

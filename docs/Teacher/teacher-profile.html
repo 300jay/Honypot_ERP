@@ -157,7 +157,7 @@
     const token = localStorage.getItem("token");
 
     if (!token) {
-        window.location.href = "/signin.html";
+        window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
     }
 
     
@@ -167,21 +167,22 @@
 
     async function loadTeacherProfile() {
         const token = localStorage.getItem("token");
+        const API_BASE = "https://honypoterp-production.up.railway.app";
 
         if (!token) {
-            window.location.href = "/signin.html";
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
             return;
         }
 
         const user = parseJwt(token);
 
         if (user.role !== "teacher") {
-            window.location.href = "/signin.html";
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
             return;
         }
 
         try {
-            const res = await fetch("/teacher/profile", {
+            const res = await fetch(`${API_BASE}/teacher/profile`, {
                 headers: {
                     "Authorization": "Bearer " + token
                 }
@@ -222,12 +223,12 @@
         const token = localStorage.getItem("token");
 
         if (!token) {
-            window.location.href = "/signin.html";
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
             return;
         }
 
         try {
-            await fetch("/logout", {
+            await fetch(`${API_BASE}/logout`, {
                 method: "POST",
                 headers: {
                     "Authorization": "Bearer " + token
@@ -245,7 +246,7 @@
 
         // Redirect
         setTimeout(() => {
-            window.location.href = "/signin.html";
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
         }, 1000);
     }
     </script>

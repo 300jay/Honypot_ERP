@@ -55,9 +55,10 @@
     <script>
 
         const token = localStorage.getItem("token");
+        const API_BASE = "https://honypoterp-production.up.railway.app";
 
         if (!token) {
-            window.location.href = "/signin.html";
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
         }
         // =====================
 // LOAD MY TICKETS
@@ -66,7 +67,7 @@ async function loadMyTickets() {
     const token = localStorage.getItem("token");
 
     try {
-        const res = await fetch("/api/tickets/my", {
+        const res = await fetch(`${API_BASE}/api/tickets/my`, {
             headers: {
                 "Authorization": "Bearer " + token
             }
@@ -130,7 +131,7 @@ async function createTicketFromModal() {
     }
 
     try {
-        const res = await fetch("/api/tickets/create", {
+        const res = await fetch(`${API_BASE}/api/tickets/create`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -161,7 +162,7 @@ async function openTicket(id) {
     const token = localStorage.getItem("token");
 
     try {
-        const res = await fetch(`/api/tickets/${id}`, {
+        const res = await fetch(`${API_BASE}/api/tickets/${id}`, {
             headers: {
                 "Authorization": "Bearer " + token
             }
@@ -254,7 +255,7 @@ async function replyTicket(id) {
 
     if (!message.trim()) return;
 
-    const res = await fetch(`/api/tickets/${id}/reply`, {
+    const res = await fetch(`${API_BASE}/api/tickets/${id}/reply`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
