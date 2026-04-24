@@ -1,4 +1,5 @@
 const db = require("../db");
+const { logActivity } = require("../logger");
 
 // Honeypot logger
 const logDecoyEvent = async (userId, type, ip) => {
@@ -12,6 +13,16 @@ const logDecoyEvent = async (userId, type, ip) => {
     }
 };
 
+function log(req, db, activity, result, source="TICKETS") {
+    logActivity(db, {
+        account_id: req.user?.id || null,
+        activity,
+        ip_address: req.headers['x-forwarded-for'] || req.ip,
+        result,
+        source
+    });
+}
+
 // ======================
 // CREATE TICKET
 // ======================
@@ -23,10 +34,10 @@ exports.createTicket = async (req, res) => {
         description = description?.trim();
 
         if (!subject || !description) {
+            log(req, db, "CREATE_TICKET", "INVALID_INPUT");
             return res.status(400).json({ message: "Invalid Input" });
         }
 
-        // Spam protection
         const [count] = await db.execute(
             "SELECT COUNT(*) as total FROM support_tickets WHERE raised_by = ? AND created_at > NOW() - INTERVAL 1 MINUTE",
             [req.user.id]
@@ -34,6 +45,7 @@ exports.createTicket = async (req, res) => {
 
         if (count[0].total > 5) {
             await logDecoyEvent(req.user.id, "TICKET_SPAM", req.ip);
+            log(req, db, "CREATE_TICKET", "RATE_LIMIT");
             return res.status(429).json({ message: "Too many requests" });
         }
 
@@ -47,10 +59,13 @@ exports.createTicket = async (req, res) => {
 
         const ticketId = result.insertId;
 
+        log(req, db, "CREATE_TICKET", "SUCCESS");
+
         res.json({ message: "Ticket created", ticketId });
 
     } catch (err) {
         console.error(err);
+        log(req, db, "CREATE_TICKET", "ERROR");
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -65,8 +80,11 @@ exports.getMyTickets = async (req, res) => {
             [req.user.id]
         );
 
+        log(req, db, "VIEW_MY_TICKETS", "SUCCESS");
+
         res.json(tickets);
     } catch (err) {
+        log(req, db, "VIEW_MY_TICKETS", "ERROR");
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -84,10 +102,13 @@ exports.getTicketById = async (req, res) => {
             [id]
         );
 
+        log(req, db, "VIEW_TICKET", "SUCCESS");
+
         res.json({ ticket, messages });
 
     } catch (err) {
         console.error(err);
+        log(req, db, "VIEW_TICKET", "ERROR");
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -103,13 +124,14 @@ exports.replyTicket = async (req, res) => {
         message = message?.trim();
 
         if (!message) {
+            log(req, db, "REPLY_TICKET", "INVALID_INPUT");
             return res.status(400).json({ message: "Invalid message" });
         }
 
-        // Honeypot check
         const patterns = [/or\s+\d+=\d+/i, /<script>/i];
         if (patterns.some(p => p.test(message))) {
             await logDecoyEvent(req.user.id, "INJECTION_ATTEMPT", req.ip);
+            log(req, db, "REPLY_TICKET", "INJECTION_DETECTED");
         }
 
         await db.execute(
@@ -117,10 +139,13 @@ exports.replyTicket = async (req, res) => {
             [id, req.user.id, message]
         );
 
+        log(req, db, "REPLY_TICKET", "SUCCESS");
+
         res.json({ message: "Reply added" });
 
     } catch (err) {
         console.error(err);
+        log(req, db, "REPLY_TICKET", "ERROR");
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -134,10 +159,12 @@ exports.assignTicket = async (req, res) => {
         const ticket = req.ticket;
 
         if (req.user.role !== "admin") {
+            log(req, db, "ASSIGN_TICKET", "UNAUTHORIZED");
             return res.status(403).json({ message: "Only admins allowed" });
         }
 
         if (ticket.assigned_to) {
+            log(req, db, "ASSIGN_TICKET", "ALREADY_ASSIGNED");
             return res.status(400).json({ message: "Already assigned" });
         }
 
@@ -146,10 +173,13 @@ exports.assignTicket = async (req, res) => {
             [req.user.id, id]
         );
 
+        log(req, db, "ASSIGN_TICKET", "SUCCESS");
+
         res.json({ message: "Assigned successfully" });
 
     } catch (err) {
         console.error(err);
+        log(req, db, "ASSIGN_TICKET", "ERROR");
         res.status(500).json({ message: "Server error" });
     }
 };
