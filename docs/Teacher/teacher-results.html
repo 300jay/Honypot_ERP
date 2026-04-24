@@ -44,26 +44,16 @@
                     
                     <div class="form-grid" style="margin-bottom: 16px; max-width: 300px;">
                         <label style="color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Select Class</label>
-                        <select class="select" onchange="showToast('Class Loaded', 'Displaying marks for selected class.')">
-                            <option>CS201 - Data Structures (Div A)</option>
-                            <option>CS201 - Data Structures (Div B)</option>
-                            <option>CS305 - Database Management</option>
-                        </select>
+                        <select id="courseSelect"></select>
                     </div>
 
                     <div class="action-row" style="margin-bottom: 16px;">
-                        <button class="primary-btn" onclick="showToast('Results saved', 'Result edits are ready to publish.')">Save Marks</button>
+                        <button class="primary-btn" onclick="saveResults()">Save Marks</button>
                     </div>
                     <div class="table-wrap">
                         <table>
                             <thead><tr><th>Student</th><th>Marks (Out of 100)</th><th>Grade</th></tr></thead>
-                            <tbody>
-                                <tr><td>Aarav</td><td contenteditable="true" class="editable">91</td><td><span class="badge good">O</span></td></tr>
-                                <tr><td>Isha</td><td contenteditable="true" class="editable">88</td><td><span class="badge good">A+</span></td></tr>
-                                <tr><td>Kabir</td><td contenteditable="true" class="editable">76</td><td><span class="badge good">A</span></td></tr>
-                                <tr><td>Riya</td><td contenteditable="true" class="editable">95</td><td><span class="badge good">O</span></td></tr>
-                                <tr><td>Meera</td><td contenteditable="true" class="editable">84</td><td><span class="badge good">A+</span></td></tr>
-                            </tbody>
+                            <tbody id="resultsBody"></tbody>
                         </table>
                     </div>
                 </section>
@@ -74,67 +64,163 @@
     <script src="teacher-scripts.js"></script>
 
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
+
+        async function loadStudents(offering_id) {
+            const res = await fetch(`/teacher/results/${offering_id}`, {
+                headers: {
+                    "Authorization": "Bearer " + localStorage.getItem("token")
+                }
+            });
+
+            const data = await res.json();
+
+            const tbody = document.getElementById("resultsBody");
+            tbody.innerHTML = "";
+
+            data.forEach(student => {
+                const row = document.createElement("tr");
+
+                row.setAttribute("data-student-id", student.student_id);
+
+                row.innerHTML = `
+                    <td>${student.full_name}</td>
+                    <td contenteditable="true" class="editable">${student.marks_obtained ?? 0}</td>
+                    <td><span class="badge">${student.grade ?? '-'}</span></td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            attachGradeLogic();
+        }
+        async function loadOfferings() {
+            const res = await fetch("/teacher/offerings", {
+                headers: {
+                    "Authorization": "Bearer " + localStorage.getItem("token")
+                }
+            });
+
+            const data = await res.json();
+            console.log("Offerings:", data); // debug
+
+            const select = document.getElementById("courseSelect");
+
+            
+            select.innerHTML = "";
+
+            if (!data || data.length === 0) {
+                select.innerHTML = `<option>No courses found</option>`;
+                return;
+            }
+
+            data.forEach(off => {
+                const option = document.createElement("option");
+                option.value = off.offering_id;
+                option.textContent = off.course_name;
+                select.appendChild(option);
+            });
+
+        
+            loadStudents(data[0].offering_id);
+        }
+        document.getElementById("courseSelect").addEventListener("change", function () {
+            loadStudents(this.value);
+        });
+
+        loadOfferings();
+
+        async function saveResults() {
+            const rows = document.querySelectorAll("tbody tr");
+            const offering_id = document.getElementById("courseSelect").value;
+
+            for (let row of rows) {
+                const student_id = row.dataset.studentId;
+                const marks = parseInt(row.cells[1].innerText);
+                const grade = row.cells[2].innerText;
+
+                if (isNaN(marks)) continue;
+
+                await fetch("/teacher/results", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + localStorage.getItem("token")
+                    },
+                    body: JSON.stringify({
+                        offering_id,
+                        student_id,
+                        exam_name: "Mid Term",
+                        exam_date: "2026-04-20",
+                        max_marks: 100,
+                        marks_obtained: marks,
+                        grade
+                    })
+                });
+            }
+
+            alert("Results saved successfully!");
+        }
+
+
+        function attachGradeLogic() {
             const editableCells = document.querySelectorAll(".editable");
 
             editableCells.forEach(cell => {
-                // Listen to every key typed into the marks column
-                cell.addEventListener("input", function() {
+                cell.addEventListener("input", function () {
                     let marksText = this.textContent.trim();
                     let marks = parseInt(marksText, 10);
                     let gradeSpan = this.nextElementSibling.querySelector(".badge");
 
-                    // Handle empty or invalid inputs gracefully
+                    // Invalid input
                     if (isNaN(marks)) {
                         gradeSpan.textContent = "-";
                         gradeSpan.className = "badge neutral";
                         return;
                     }
 
-                    // Cap marks between 0 and 100
+                    // Limit 0–100
                     if (marks < 0) marks = 0;
                     if (marks > 100) marks = 100;
 
                     let grade = "";
                     let badgeClass = "";
 
-                    // Grading Logic
-                    if (marks >= 90) { 
-                        grade = "O"; 
-                        badgeClass = "badge good"; 
-                    } else if (marks >= 80) { 
-                        grade = "A+"; 
-                        badgeClass = "badge good"; 
-                    } else if (marks >= 70) { 
-                        grade = "A"; 
-                        badgeClass = "badge good"; 
-                    } else if (marks >= 60) { 
-                        grade = "B+"; 
-                        badgeClass = "badge warn"; 
-                    } else if (marks >= 50) { 
-                        grade = "B"; 
-                        badgeClass = "badge warn"; 
-                    } else if (marks >= 40) { 
-                        grade = "C"; 
-                        badgeClass = "badge warn"; 
-                    } else { 
-                        grade = "F"; 
-                        badgeClass = "badge bad"; 
+                    // Grade logic
+                    if (marks >= 90) {
+                        grade = "O";
+                        badgeClass = "badge good";   // green
+                    } else if (marks >= 80) {
+                        grade = "A+";
+                        badgeClass = "badge good";
+                    } else if (marks >= 70) {
+                        grade = "A";
+                        badgeClass = "badge good";
+                    } else if (marks >= 60) {
+                        grade = "B+";
+                        badgeClass = "badge warn";   // yellow
+                    } else if (marks >= 50) {
+                        grade = "B";
+                        badgeClass = "badge warn";
+                    } else if (marks >= 40) {
+                        grade = "C";
+                        badgeClass = "badge warn";
+                    } else {
+                        grade = "F";
+                        badgeClass = "badge bad";    // red
                     }
 
-                    // Update the DOM
                     gradeSpan.textContent = grade;
                     gradeSpan.className = badgeClass;
                 });
 
-                // Prevent users from typing letters (only allow numbers)
-                cell.addEventListener("keypress", function(e) {
+                // Prevent typing letters
+                cell.addEventListener("keypress", function (e) {
                     if (isNaN(String.fromCharCode(e.which))) {
                         e.preventDefault();
                     }
                 });
             });
-        });
+        }
     </script>
 </body>
 </html>

@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="../style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
-<body data-theme="dark" data-role="admin">
+<body data-theme="dark" data-role="teacher">
     <div class="bg-orb orb-1"></div>
     <div class="bg-orb orb-2"></div>
     <div class="bg-grid"></div>
@@ -79,19 +79,16 @@
                     <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: end;">
                         <div>
                             <label style="color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; display: block; font-weight: 600; text-transform: uppercase;">Class / Subject</label>
-                            <select class="select">
-                                <option>CS201 - Data Structures (Div A)</option>
-                                <option>CS201 - Data Structures (Div B)</option>
-                                <option>CS305 - Database Management</option>
-                                <option>CS410 - Artificial Intelligence</option>
-                            </select>
+                            <select class="select" id="offeringSelect"></select>
                         </div>
                         <div>
                             <label style="color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; display: block; font-weight: 600; text-transform: uppercase;">Date</label>
                             <input type="date" class="input" id="attendanceDate" />
                         </div>
                         <div>
-                            <button class="primary-btn" style="width: 100%; justify-content: center;" onclick="showToast('Class Loaded', 'Student roster fetched successfully.')">Load Roster</button>
+                            <button class="primary-btn" style="width: 100%; justify-content: center;" onclick="loadRoster()">
+                                Load Roster
+                            </button>
                         </div>
                     </div>
                 </section>
@@ -103,8 +100,8 @@
                             <p class="panel-sub">Mark students present or absent for the selected session.</p>
                         </div>
                         <div style="display: flex; gap: 8px;">
-                            <button class="secondary-btn" onclick="markAll('Present')">Mark All Present</button>
-                            <button class="secondary-btn" onclick="markAll('Absent')">Mark All Absent</button>
+                            <button class="secondary-btn" onclick="markAll('present')">Mark All Present</button>
+                            <button class="secondary-btn" onclick="markAll('absent')">Mark All Absent</button>
                         </div>
                     </div>
                     
@@ -118,74 +115,15 @@
                                     <th>Remarks (Optional)</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>101</td>
-                                    <td><strong>Aarav Sharma</strong></td>
-                                    <td>
-                                        <select class="select status-select">
-                                            <option value="Present" selected>Present</option>
-                                            <option value="Absent">Absent</option>
-                                            <option value="Late">Late</option>
-                                        </select>
-                                    </td>
-                                    <td><input type="text" class="input" placeholder="Notes..." style="padding: 6px 12px; font-size: 0.85rem;" /></td>
-                                </tr>
-                                <tr>
-                                    <td>102</td>
-                                    <td><strong>Isha Patel</strong></td>
-                                    <td>
-                                        <select class="select status-select">
-                                            <option value="Present" selected>Present</option>
-                                            <option value="Absent">Absent</option>
-                                            <option value="Late">Late</option>
-                                        </select>
-                                    </td>
-                                    <td><input type="text" class="input" placeholder="Notes..." style="padding: 6px 12px; font-size: 0.85rem;" /></td>
-                                </tr>
-                                <tr>
-                                    <td>103</td>
-                                    <td><strong>Kabir Singh</strong></td>
-                                    <td>
-                                        <select class="select status-select">
-                                            <option value="Present" selected>Present</option>
-                                            <option value="Absent">Absent</option>
-                                            <option value="Late">Late</option>
-                                        </select>
-                                    </td>
-                                    <td><input type="text" class="input" placeholder="Notes..." style="padding: 6px 12px; font-size: 0.85rem;" /></td>
-                                </tr>
-                                <tr>
-                                    <td>104</td>
-                                    <td><strong>Riya Desai</strong></td>
-                                    <td>
-                                        <select class="select status-select">
-                                            <option value="Present" selected>Present</option>
-                                            <option value="Absent">Absent</option>
-                                            <option value="Late">Late</option>
-                                        </select>
-                                    </td>
-                                    <td><input type="text" class="input" placeholder="Notes..." style="padding: 6px 12px; font-size: 0.85rem;" /></td>
-                                </tr>
-                                <tr>
-                                    <td>105</td>
-                                    <td><strong>Meera Reddy</strong></td>
-                                    <td>
-                                        <select class="select status-select">
-                                            <option value="Present" selected>Present</option>
-                                            <option value="Absent">Absent</option>
-                                            <option value="Late">Late</option>
-                                        </select>
-                                    </td>
-                                    <td><input type="text" class="input" placeholder="Notes..." style="padding: 6px 12px; font-size: 0.85rem;" /></td>
-                                </tr>
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
 
                     <div class="action-row" style="margin-top: 18px; border-top: 1px solid var(--border); padding-top: 18px; justify-content: space-between;">
                         <span class="badge neutral" style="font-size: 0.9rem; padding: 6px 12px;">Total Students: 5</span>
-                        <button class="primary-btn" onclick="showToast('Success', 'Attendance records have been securely saved.')">Save Attendance</button>
+                        <button class="primary-btn" onclick="saveAttendance()">
+                            Save Attendance
+                        </button>
                     </div>
                 </section>
 
@@ -204,6 +142,8 @@
             if (dateInput) {
                 dateInput.valueAsDate = new Date();
             }
+
+            loadOfferings();
 
             // Initialize select colors
             document.querySelectorAll('.status-select').forEach(select => {
@@ -235,11 +175,14 @@
 
         // Function to mark all students at once
         function markAll(status) {
+            console.log("Marking all:", status);
+
             document.querySelectorAll('.status-select').forEach(select => {
                 select.value = status;
                 updateSelectStyle(select);
             });
-            showToast('Batch Applied', `All students marked as ${status}.`);
+
+            showToast('Batch Applied', `All students marked as ${status}`);
         }
 
         // --- Modal System ---
@@ -351,6 +294,114 @@
                 }
             });
         });
+
+        async function loadOfferings() {
+            const token = localStorage.getItem("token");
+
+            const res = await fetch("http://localhost:3000/teacher/offerings", {
+                headers: {
+                    Authorization: "Bearer " + token
+                }
+            });
+
+            const data = await res.json();
+
+            const select = document.getElementById("offeringSelect");
+            select.innerHTML = "";
+
+            data.forEach(o => {
+                select.innerHTML += `
+                    <option value="${o.offering_id}">
+                        ${o.course_name}
+                    </option>
+                `;
+            });
+        }
+
+        async function saveAttendance() {
+            const token = localStorage.getItem("token");
+
+            const offering_id = document.getElementById("offeringSelect").value;
+            const date = document.getElementById("attendanceDate").value;
+
+            const rows = document.querySelectorAll("tbody tr");
+
+            for (let row of rows) {
+                const student_id = row.children[0].innerText;
+                const status = row.querySelector(".status-select").value;
+
+                await fetch("http://localhost:3000/teacher/attendance", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: "Bearer " + token
+                    },
+                    body: JSON.stringify({
+                        student_id,
+                        attendance_date: date,
+                        status,
+                        offering_id
+                    })
+                });
+            }
+
+            showToast("Success", "Attendance saved successfully");
+        }
+
+        async function loadRoster() {
+
+            const token = localStorage.getItem("token");
+
+            const offering_id = document.getElementById("offeringSelect").value;
+            const date = document.getElementById("attendanceDate").value;
+
+            console.log("Offering:", offering_id, "Date:", date);
+
+            const res = await fetch(
+                `http://localhost:3000/teacher/attendance/${offering_id}/${date}`,
+                {
+                    headers: {
+                        Authorization: "Bearer " + token
+                    }
+                }
+            );
+
+            const data = await res.json();
+            console.log("Roster data:", data);
+
+            
+            if (!Array.isArray(data)) {
+                console.error("Not array:", data);
+                showToast("Error", data.message || "Failed to load roster");
+                return;
+            }
+
+            const tbody = document.querySelector("tbody");
+            tbody.innerHTML = "";
+
+            data.forEach(s => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${s.student_id}</td>
+                        <td><strong>${s.full_name}</strong></td>
+                        <td>
+                            <select class="select status-select">
+                                <option value="present" ${s.status === "present" ? "selected" : ""}>Present</option>
+                                <option value="absent" ${s.status === "absent" ? "selected" : ""}>Absent</option>
+                            </select>
+                        </td>
+                        <td><input type="text" class="input"/></td>
+                    </tr>
+                `;
+            });
+
+            document.querySelectorAll('.status-select').forEach(select => {
+                select.addEventListener('change', (e) => updateSelectStyle(e.target));
+                updateSelectStyle(select);
+            });
+
+            showToast("Loaded", "Roster fetched successfully");
+        }
     </script>
 </body>
 </html>

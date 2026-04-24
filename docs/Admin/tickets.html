@@ -318,13 +318,15 @@
         async function loadAllTickets() {
             const token = localStorage.getItem("token");
 
-            const res = await fetch(`/manage/tickets`, {
+            const res = await fetch("/manage/tickets", {
                 headers: {
                     "Authorization": "Bearer " + token
                 }
             });
 
             const tickets = await res.json();
+
+            console.log("Tickets:", tickets); // debug
 
             const tbody = document.getElementById("ticketTableBody");
             tbody.innerHTML = "";
@@ -352,6 +354,7 @@
                     <td><span class="badge ${statusClass}">${statusText}</span></td>
                 `;
 
+                // (optional later)
                 row.onclick = () => openTicket(ticket.ticket_id);
 
                 tbody.appendChild(row);
@@ -361,7 +364,7 @@
         async function openTicket(id) {
             const token = localStorage.getItem("token");
 
-            
+            const res = await fetch(`/api/tickets/${id}`, {
                 headers: {
                     "Authorization": "Bearer " + token
                 }
@@ -413,6 +416,7 @@
 
                     <div class="modal-foot" style="justify-content:space-between;">
                         <button class="secondary-btn" onclick="closeModal()">Close</button>
+                        <button class="primary-btn" onclick="closeTicket(${id})">Close Ticket</button>
                         ${
                             !data.ticket.assigned_to
                             ? `<button class="primary-btn" onclick="assignTicket(${id})">Assign to Me</button>`
@@ -433,7 +437,9 @@
             const message = document.getElementById("replyInput").value;
             const token = localStorage.getItem("token");
 
-            const res = await fetch(`/tickets/${id}/reply`, {
+            if (!message.trim()) return;
+
+            const res = await fetch(`/api/tickets/${id}/reply`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -443,7 +449,8 @@
             });
 
             if (res.ok) {
-                openTicket(id);
+                document.getElementById("replyInput").value = "";
+                openTicket(id); // refresh messages
             }
         }
 
@@ -462,7 +469,7 @@
             if (res.ok) {
                 showToast("Assigned", "Ticket assigned to you");
                 loadAllTickets();
-                openTicket(id);
+                setTimeout(() => openTicket(id), 200);
             } else {
                 showToast("Error", data.message || "Failed");
             }

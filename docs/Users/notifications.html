@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Notifications</title>
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body data-theme="dark" data-role="admin">
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-grid"></div>
+
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-mark"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="brand-text">
+                    <h1>CampusFlow</h1>
+                    <p>Role-based smart dashboard</p>
+                </div>
+            </div>
+
+            <nav class="nav">
+                <a href="dashboard.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">▣</span>
+                    <span class="nav-body">
+                        <span class="nav-label">Dashboard</span>
+                        <span class="nav-sub">Overview</span>
+                    </span>
+                </a>
+                <a href="users.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">◫</span>
+                    <span class="nav-body">
+                        <span class="nav-label">Users</span>
+                        <span class="nav-sub">Register & update</span>
+                    </span>
+                </a>
+                <a href="tickets.html" class="nav-item" style="text-decoration: none;">
+                    <span class="nav-ico">✉</span>
+                    <span class="nav-body">
+                        <span class="nav-label">Tickets</span>
+                        <span class="nav-sub">Track support</span>
+                    </span>
+                </a>
+                <a href="notifications.html" class="nav-item active" style="text-decoration: none;">
+                    <span class="nav-ico">☰</span>
+                    <span class="nav-body">
+                        <span class="nav-label">Notifications</span>
+                        <span class="nav-sub">Recent updates</span>
+                    </span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-btn mobile-btn" id="mobileMenuBtn">☰</button>
+                    <div><p class="eyebrow">Workspace</p><h2>ADMIN</h2></div>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="themeBtn" title="Toggle theme">☾</button>
+                </div>
+            </header>
+
+            <section class="toolbar">
+                <div><div class="hint">Viewing <strong>Notifications</strong> · built for admin</div></div>
+            </section>
+
+            <section class="content" id="content">
+                <div class="grid-2">
+                    <section class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3 class="panel-title">Push Notification</h3>
+                                <p class="panel-sub">Compose and send announcements.</p>
+                            </div>
+                        </div>
+                        <div class="form-grid">
+                            <input class="input" placeholder="Notification title" />
+                            <textarea class="textarea" placeholder="Write your message here..."></textarea>
+                            <div class="action-row">
+                                <button class="primary-btn" onclick="openModal('notification')">Compose Notification</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3 class="panel-title">Recent Notices</h3>
+                                <p class="panel-sub">The last few notifications sent across the workspace.</p>
+                            </div>
+                        </div>
+                        <div class="list">
+                            <div class="list-item"><div><strong>Admin</strong><p>Fee reminder sent</p></div><span class="badge info">Delivered</span></div>
+                            <div class="list-item"><div><strong>Admin</strong><p>Holiday notice issued</p></div><span class="badge good">Delivered</span></div>
+                            <div class="list-item"><div><strong>Admin</strong><p>Event reminder queued</p></div><span class="badge warn">Scheduled</span></div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="modalRoot"></div>  
+    <div id="toastRoot"></div>
+    
+    <script>
+        // --- Modal System ---
+        function openModal(type) {
+            const modalRoot = document.getElementById("modalRoot");
+            if (!modalRoot) return;
+
+            const config = {
+                user: {
+                    title: "Add User",
+                    body: `
+                        <div class="modal-grid">
+                            <div class="form-grid">
+                                <input class="input" placeholder="Full name" />
+                                <select class="select">
+                                    <option>Student</option>
+                                    <option>Teacher</option>
+                                    <option>Admin</option>
+                                </select>
+                                <input class="input" placeholder="Department / Class" />
+                            </div>
+                            <div class="panel" style="margin:0; margin-top: 16px;">
+                                <h3 class="panel-title">Tip</h3>
+                                <p class="panel-sub">Use clear role assignment to keep the dashboard organized and secure.</p>
+                            </div>
+                        </div>
+                    `,
+                    action: "Create User"
+                },
+                notification: {
+                    title: "Compose Notification",
+                    body: `
+                        <div class="form-grid">
+                            <input class="input" placeholder="Title" />
+                            <textarea class="textarea" placeholder="Write your message..."></textarea>
+                            <select class="select">
+                                <option>Send to Everyone</option>
+                                <option>Send to Teachers</option>
+                                <option>Send to Students</option>
+                            </select>
+                        </div>
+                    `,
+                    action: "Send"
+                }
+            };
+
+            const item = config[type];
+            if (!item) return;
+
+            modalRoot.innerHTML = `
+                <div class="modal-backdrop" id="modalBackdrop">
+                    <div class="modal">
+                        <div class="modal-head">
+                            <h3>${item.title}</h3>
+                            <button class="icon-btn" onclick="closeModal()">✕</button>
+                        </div>
+                        <div class="modal-body">
+                            ${item.body}
+                        </div>
+                        <div class="modal-foot">
+                            <button class="secondary-btn" onclick="closeModal()">Cancel</button>
+                            <button class="primary-btn" onclick="submitModal('${item.action}')">${item.action}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Click outside the modal card to close it
+            document.getElementById("modalBackdrop").addEventListener("click", (e) => {
+                if (e.target.id === "modalBackdrop") closeModal();
+            });
+        }
+
+        function closeModal() {
+            const modalRoot = document.getElementById("modalRoot");
+            if (modalRoot) modalRoot.innerHTML = "";
+        }
+
+        function submitModal(actionName) {
+            closeModal();
+            showToast(actionName, `${actionName} triggered successfully.`);
+        }
+
+        // --- Toast Notifications ---
+        function showToast(title, message) {
+            const toastRoot = document.getElementById("toastRoot");
+            const toast = document.createElement("div");
+            toast.className = "toast";
+            toast.innerHTML = `<strong>${title}</strong><p>${message}</p>`;
+            toastRoot.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateX(16px)";
+            }, 2600);
+            setTimeout(() => toast.remove(), 3100);
+        }
+
+        // --- Theme Toggle ---
+        document.getElementById("themeBtn").addEventListener("click", () => {
+            let theme = document.body.dataset.theme === "dark" ? "light" : "dark";
+            document.body.dataset.theme = theme;
+            document.getElementById("themeBtn").textContent = theme === "dark" ? "☾" : "☀";
+        });
+
+        // --- Mobile Hamburger Menu ---
+        document.getElementById("mobileMenuBtn")?.addEventListener("click", () => {
+            document.body.classList.toggle("sidebar-open");
+        });
+    </script>
+</body>
+</html>

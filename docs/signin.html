@@ -154,12 +154,17 @@
         const data = await res.json();
         console.log(data);
 
+        // 🔥 STEP 1: Honeypot redirect (TOP PRIORITY)
+        if (data.redirect) {
+            window.location.href = data.redirect;
+            return;
+        }
+
+        // 🟢 STEP 2: Normal login
         if (data.token) {
-            // store
             localStorage.setItem("token", data.token);
             localStorage.setItem("role", data.role);
 
-            // redirect
             if (data.role === "admin") {
                 window.location.href = "/Admin/dashboard.html";
             } else if (data.role === "student") {
