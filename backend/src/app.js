@@ -788,5 +788,14 @@ app.get("/service/get-user/:id", authMiddleware, requireRole("admin"), async (re
     }
 });
 
+app.get("/test-db", async (req, res) => {
+    try {
+        const [rows] = await db.execute("SELECT 1");
+        res.json({ success: true, rows });
+    } catch (err) {
+        console.error("DB TEST ERROR:", err);
+        res.json({ success: false, error: err.message });
+    }
+});
 
 app.use("/api/tickets", ticketRoutes);
