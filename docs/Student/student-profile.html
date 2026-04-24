@@ -147,29 +147,15 @@
     <script>
 
     const token = localStorage.getItem("token");
+    const API_BASE = "https://honypoterp-production.up.railway.app";
 
     if (!token) {
-        window.location.href = "/signin.html";
+        window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
     }
     
     function parseJwt(token) {
         return JSON.parse(atob(token.split('.')[1]));
     }
-
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-        window.location.href = "/signin.html";
-    } else {
-        const user = parseJwt(token);
-
-        if (user.role !== "student") {
-            window.location.href = "/signin.html";
-        }
-    }
-    </script>
-    
-    <script>
         // --- Toast Notifications ---
         function showToast(title, message) {
             const toastRoot = document.getElementById("toastRoot");
@@ -213,12 +199,12 @@
     const token = localStorage.getItem("token");
 
     if (!token) {
-        window.location.href = "/signin.html";
+        window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
         return;
     }
 
     try {
-        await fetch("/logout", {
+        await fetch(`${API_BASE}/logout`, {
             method: "POST",
             headers: {
                 "Authorization": "Bearer " + token
@@ -236,7 +222,7 @@
 
     // Redirect
     setTimeout(() => {
-        window.location.href = "/signin.html";
+        window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
     }, 1000);
 }
     </script>
@@ -249,18 +235,18 @@
             const token = localStorage.getItem("token");
 
             if (!token) {
-                window.location.href = "/signin.html";
+                window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
                 return;
             }
 
             const user = parseJwt(token);
 
             if (user.role !== "student") {
-                window.location.href = "/signin.html";
+                window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
                 return;
             }
 
-            const res = await fetch("/student/profile", {
+            const res = await fetch(`${API_BASE}/student/profile`, {
                 headers: {
                     "Authorization": "Bearer " + token
                 }

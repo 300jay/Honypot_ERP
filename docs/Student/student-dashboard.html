@@ -125,15 +125,16 @@
     <div id="modalRoot"></div><div id="toastRoot"></div>
     <script src="student-scripts.js"></script>
     <script>
+        const API_BASE = "https://honypoterp-production.up.railway.app";
         const token = localStorage.getItem("token");
 
     if (!token) {
-        window.location.href = "/signin.html";
+        window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
     }
     async function loadTodayClasses() {
         const token = localStorage.getItem("token");
 
-        const res = await fetch("http://localhost:3000/timetable/student", {
+        const res = await fetch(`${API_BASE}/timetable/student`, {
             headers: {
                 Authorization: "Bearer " + token
             }
@@ -230,7 +231,7 @@
     async function loadResultAverage() {
         const token = localStorage.getItem("token");
 
-        const res = await fetch("http://localhost:3000/student/results", {
+        const res = await fetch(`${API_BASE}/student/results`, {
             headers: {
                 Authorization: "Bearer " + token
             }
@@ -270,7 +271,7 @@
     loadResultAverage();
 
     async function updateAttendanceDashboard() {
-    const res = await fetch("http://localhost:3000/student/attendance", {
+    const res = await fetch(`${API_BASE}/student/attendance`, {
         headers: {
             "Authorization": "Bearer " + localStorage.getItem("token")
         }
