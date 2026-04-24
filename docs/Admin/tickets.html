@@ -134,6 +134,14 @@
     <div id="toastRoot"></div>
     
     <script>
+
+        const token = localStorage.getItem("token");
+        const API_BASE = "https://honypoterp-production.up.railway.app";
+
+
+        if (!token) {
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
+        }
         // --- Modal System ---
         function openModal(type) {
             const modalRoot = document.getElementById("modalRoot");
@@ -253,7 +261,7 @@
                 };
             }
 
-            const res = await fetch("/service/create-user", {
+            const res = await fetch(`${API_BASE}/service/create-user`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -318,7 +326,7 @@
         async function loadAllTickets() {
             const token = localStorage.getItem("token");
 
-            const res = await fetch("/manage/tickets", {
+            const res = await fetch(`${API_BASE}/manage/tickets`, {
                 headers: {
                     "Authorization": "Bearer " + token
                 }
@@ -341,7 +349,7 @@
                 }
 
                 if (ticket.status === "closed") {
-                    statusText = "Closed";
+                    statusText = "Resolved";
                     statusClass = "good";
                 }
 
@@ -364,7 +372,7 @@
         async function openTicket(id) {
             const token = localStorage.getItem("token");
 
-            const res = await fetch(`/api/tickets/${id}`, {
+            const res = await fetch(`${API_BASE}/api/tickets/${id}`, {
                 headers: {
                     "Authorization": "Bearer " + token
                 }
@@ -439,7 +447,7 @@
 
             if (!message.trim()) return;
 
-            const res = await fetch(`/api/tickets/${id}/reply`, {
+            const res = await fetch(`${API_BASE}/api/tickets/${id}/reply`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -457,7 +465,7 @@
         async function assignTicket(id) {
             const token = localStorage.getItem("token");
 
-            const res = await fetch(`/manage/tickets/${id}/assign`, {
+            const res = await fetch(`${API_BASE}/manage/tickets/${id}/assign`, {
                 method: "PATCH",
                 headers: {
                     "Authorization": "Bearer " + token
@@ -470,6 +478,29 @@
                 showToast("Assigned", "Ticket assigned to you");
                 loadAllTickets();
                 setTimeout(() => openTicket(id), 200);
+            } else {
+                showToast("Error", data.message || "Failed");
+            }
+        }
+
+        async function closeTicket(id) {
+            const token = localStorage.getItem("token");
+
+            const res = await fetch(`${API_BASE}/manage/tickets/${id}/status`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ status: "closed" })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast("Success", "Ticket resolved");
+                closeModal();
+                loadAllTickets(); // refresh table
             } else {
                 showToast("Error", data.message || "Failed");
             }

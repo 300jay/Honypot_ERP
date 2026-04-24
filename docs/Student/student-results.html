@@ -57,5 +57,79 @@
     </div>
     <div id="modalRoot"></div><div id="toastRoot"></div>
     <script src="student-scripts.js"></script>
+    <script>
+        const token = localStorage.getItem("token");
+
+    if (!token) {
+        window.location.href = "/signin.html";
+    }
+
+
+    async function loadResults() {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch("http://localhost:3000/student/results", {
+            headers: {
+                Authorization: "Bearer " + token
+            }
+        });
+
+        const data = await res.json();
+        console.log("RESULT DATA:", data);
+
+        const container = document.querySelector(".panel .grid-2");
+
+        // Take one card as template
+        const template = container.querySelector(".stat-card");
+        container.innerHTML = "";
+
+        if (!data || data.length === 0) {
+            container.innerHTML = "<p>No results available</p>";
+            return;
+        }
+
+        let total = 0;
+
+        data.forEach(r => {
+            const card = template.cloneNode(true);
+
+            
+            card.querySelector(".stat-label").innerText = r.course_name;
+
+            // Marks
+            card.querySelector(".stat-value").innerText = r.marks_obtained;
+
+            // Grade
+            const badge = card.querySelector(".badge");
+            const grade = (r.grade || "").toUpperCase().trim();
+
+            badge.innerText = grade;
+
+            // Correct color logic
+            if (["O", "A+", "A"].includes(grade)) {
+                badge.className = "badge good";
+            } else if (["B+", "B", "C"].includes(grade)) {
+                badge.className = "badge warn";
+            } else {
+                badge.className = "badge bad";
+            }
+
+            container.appendChild(card);
+
+            total += r.marks_obtained;
+        });
+
+        // Calculate average
+        const avg = Math.round(total / data.length);
+
+        // Update ring
+        const ring = document.querySelector(".ring");
+        ring.style.setProperty("--p", avg);
+
+        document.querySelector(".ring-content strong").innerText = avg;
+    }
+
+    loadResults();
+    </script>
 </body>
 </html>

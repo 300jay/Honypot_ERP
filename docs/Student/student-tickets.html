@@ -54,6 +54,12 @@
     <div id="modalRoot"></div><div id="toastRoot"></div>
     <script src="student-scripts.js"></script>
     <script>
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            window.location.href = "/signin.html";
+        }
         // =====================
         // LOAD MY TICKETS
         // =====================
@@ -164,8 +170,91 @@
 
                 const data = await res.json();
 
-                // Use your existing toast instead of new UI
-                showToast("Ticket", data.ticket.subject);
+                const modalRoot = document.getElementById("modalRoot");
+
+                modalRoot.innerHTML = `
+                <div class="modal-backdrop" id="modalBackdrop">
+                    <div class="modal" style="max-width:650px; display:flex; flex-direction:column;">
+
+                        <div class="modal-head">
+                            <h3>Ticket #${id}</h3>
+                            <button class="icon-btn" onclick="closeModal()">✕</button>
+                        </div>
+
+                        <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+
+                            <div>
+                                <p><strong>Subject:</strong> ${data.ticket.subject}</p>
+                                <p><strong>Description:</strong> ${data.ticket.description}</p>
+                            </div>
+
+                            <div id="messages" style="
+                                max-height:250px;
+                                overflow-y:auto;
+                                display:flex;
+                                flex-direction:column;
+                                gap:8px;
+                                padding:10px;
+                                background:rgba(255,255,255,0.05);
+                                border-radius:8px;
+                            ">
+                                ${data.messages.map(m => {
+                                    const token = localStorage.getItem("token");
+                                    const user = JSON.parse(atob(token.split('.')[1]));
+                                    const isMe = m.sender_id === user.id;
+
+                                    return `
+                                        <div style="
+                                            padding:8px;
+                                            border-radius:6px;
+                                            background:${isMe ? "#2ecc71" : "#3498db"};
+                                            color:white;
+                                            align-self:${isMe ? "flex-end" : "flex-start"};
+                                        ">
+                                            <strong>${isMe ? "You" : "Admin"}:</strong>
+                                            <div>${m.message}</div>
+                                        </div>
+                                    `;
+                                }).join("")}
+                            </div>
+
+                            <div style="
+                                display:flex;
+                                gap:10px;
+                                margin-top:10px;
+                            ">
+                                <input id="replyInput" placeholder="Type reply..." style="
+                                    flex:1;
+                                    padding:12px;
+                                    border-radius:12px;
+                                    border:1px solid rgba(255,255,255,0.1);
+                                    background:rgba(255,255,255,0.05);
+                                    color:white;
+                                    outline:none;
+                                " />
+
+                                <button onclick="replyTicket(${id})" style="
+                                    padding:12px 18px;
+                                    border-radius:12px;
+                                    border:none;
+                                    background:linear-gradient(90deg,#7c3aed,#6366f1);
+                                    color:white;
+                                    font-weight:bold;
+                                    cursor:pointer;
+                                ">
+                                    Send
+                                </button>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+                `;
+
+                document.getElementById("modalBackdrop").addEventListener("click", (e) => {
+                    if (e.target.id === "modalBackdrop") closeModal();
+                });
 
             } catch (err) {
                 console.error("Open ticket error:", err);
@@ -219,6 +308,26 @@
             // fallback to original modal
             if (originalOpenModal) originalOpenModal(type);
         };
+
+        async function replyTicket(id) {
+            const token = localStorage.getItem("token");
+            const message = document.getElementById("replyInput").value;
+
+            if (!message.trim()) return;
+
+            const res = await fetch(`/api/tickets/${id}/reply`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ message })
+            });
+
+            if (res.ok) {
+                openTicket(id); // refresh chat
+            }
+        }
 
         // =====================
         // AUTO LOAD

@@ -40,15 +40,16 @@
                 <section class="panel">
                     <div class="panel-head"><div><h3 class="panel-title">Weekly Timetable</h3><p class="panel-sub">A beautiful schedule layout that is easy to read.</p></div></div>
                     <div class="table-wrap">
-                        <table>
-                            <thead><tr><th>Day</th><th>09:00</th><th>10:00</th><th>11:00</th><th>12:00</th><th>02:00</th></tr></thead>
-                            <tbody>
-                                <tr><td><strong>Mon</strong></td><td>Math</td><td>DBMS</td><td>Break</td><td>Science</td><td>Sports</td></tr>
-                                <tr><td><strong>Tue</strong></td><td>English</td><td>Lab</td><td>Break</td><td>Math</td><td>Reading</td></tr>
-                                <tr><td><strong>Wed</strong></td><td>DBMS</td><td>Math</td><td>Break</td><td>Science</td><td>Project</td></tr>
-                                <tr><td><strong>Thu</strong></td><td>Lab</td><td>English</td><td>Break</td><td>Mentoring</td><td>Sports</td></tr>
-                                <tr><td><strong>Fri</strong></td><td>Math</td><td>Revision</td><td>Break</td><td>Quiz</td><td>Club</td></tr>
-                            </tbody>
+                        <table id="timetableTable">
+                                <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Course</th>
+                                    <th>Time</th>
+                                    <th>Room</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
                         </table>
                     </div>
                 </section>
@@ -57,5 +58,81 @@
     </div>
     <div id="modalRoot"></div><div id="toastRoot"></div>
     <script src="student-scripts.js"></script>
+    <script>
+
+        const token = localStorage.getItem("token");
+
+    if (!token) {
+        window.location.href = "/signin.html";
+    }
+    
+    async function loadTimetable() {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch("http://localhost:3000/timetable/student", {
+            headers: {
+                Authorization: "Bearer " + token
+            }
+        });
+
+        const data = await res.json();
+        console.log("API DATA:", data);
+
+        const table = document.getElementById("timetableTable");
+
+        //  Normalize day names (optional safety)
+        data.forEach(d => {
+            d.day_of_week =
+                d.day_of_week.charAt(0).toUpperCase() +
+                d.day_of_week.slice(1).toLowerCase();
+        });
+
+        //  Fixed Monday → Friday order
+        const orderedDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+        const days = orderedDays.filter(day =>
+            data.some(d => d.day_of_week === day)
+        );
+
+        //  Get sorted time slots
+        const times = [...new Set(data.map(d => d.start_time))].sort();
+
+        //  Create lookup map
+        const map = {};
+        data.forEach(d => {
+            const key = d.day_of_week + "_" + d.start_time;
+            map[key] = `${d.course_name}<br>${d.room_no}`;
+        });
+
+        //  Build table header
+        let thead = `<thead><tr><th>Day</th>`;
+        times.forEach(t => {
+            thead += `<th>${t}</th>`;
+        });
+        thead += `</tr></thead>`;
+
+        //  Build table body
+        let tbody = "<tbody>";
+
+        days.forEach(day => {
+            tbody += `<tr><td>${day}</td>`;
+
+            times.forEach(time => {
+                const key = day + "_" + time;
+                tbody += `<td>${map[key] || "-"}</td>`;
+            });
+
+            tbody += `</tr>`;
+        });
+
+        tbody += "</tbody>";
+
+        //  Render table
+        table.innerHTML = thead + tbody;
+    }
+
+
+    loadTimetable();
+    </script>
 </body>
 </html>

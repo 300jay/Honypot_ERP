@@ -65,6 +65,12 @@
 
     <script>
 
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            window.location.href = "/signin.html";
+        }
+
         async function loadStudents(offering_id) {
             const res = await fetch(`/teacher/results/${offering_id}`, {
                 headers: {

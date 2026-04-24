@@ -43,16 +43,7 @@
                         
                     </div>
                     <div class="table-wrap">
-                        <table>
-                            <thead><tr><th>Day</th><th>09:00</th><th>10:00</th><th>11:00</th><th>12:00</th><th>02:00</th></tr></thead>
-                            <tbody>
-                                <tr><td><strong>Mon</strong></td><td>Math</td><td>DBMS</td><td>Break</td><td>Lab</td><td>Sports</td></tr>
-                                <tr><td><strong>Tue</strong></td><td>Science</td><td>English</td><td>Break</td><td>Math</td><td>Library</td></tr>
-                                <tr><td><strong>Wed</strong></td><td>Math</td><td>Project</td><td>Break</td><td>Lab</td><td>Mentoring</td></tr>
-                                <tr><td><strong>Thu</strong></td><td>English</td><td>Math</td><td>Break</td><td>Seminar</td><td>Sports</td></tr>
-                                <tr><td><strong>Fri</strong></td><td>Lab</td><td>DBMS</td><td>Break</td><td>Revision</td><td>Counselling</td></tr>
-                            </tbody>
-                        </table>
+                        <table id="timetableTable"></table>
                     </div>
                 </section>
             </section>
@@ -60,5 +51,69 @@
     </div>
     <div id="modalRoot"></div><div id="toastRoot"></div>
     <script src="teacher-scripts.js"></script>
+    <script>
+
+        const token = localStorage.getItem("token");
+
+    if (!token) {
+        window.location.href = "/signin.html";
+    }
+async function loadTeacherTimetable() {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch("http://localhost:3000/teacher/timetable", {
+        headers: {
+            Authorization: "Bearer " + token
+        }
+    });
+
+    const data = await res.json();
+    console.log("TEACHER TIMETABLE:", data);
+
+    if (!Array.isArray(data)) return;
+
+    const table = document.getElementById("timetableTable");
+
+    // Days order
+    const orderedDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+    const days = orderedDays.filter(day =>
+        data.some(d => d.day_of_week === day)
+    );
+
+    const times = [...new Set(data.map(d => d.start_time))].sort();
+
+    const map = {};
+    data.forEach(d => {
+        const key = d.day_of_week + "_" + d.start_time;
+        map[key] = `${d.course_name}<br>${d.room_no}`;
+    });
+
+    // Header
+    let thead = `<thead><tr><th>Day</th>`;
+    times.forEach(t => thead += `<th>${t}</th>`);
+    thead += `</tr></thead>`;
+
+    // Body
+    let tbody = "<tbody>";
+
+    days.forEach(day => {
+        tbody += `<tr><td>${day}</td>`;
+
+        times.forEach(time => {
+            const key = day + "_" + time;
+            tbody += `<td>${map[key] || "-"}</td>`;
+        });
+
+        tbody += "</tr>";
+    });
+
+    tbody += "</tbody>";
+
+    table.innerHTML = thead + tbody;
+}
+
+loadTeacherTimetable();
+</script>
 </body>
 </html>

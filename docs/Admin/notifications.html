@@ -109,6 +109,12 @@
     <div id="toastRoot"></div>
     
     <script>
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            window.location.href = "/signin.html";
+        }
         // --- Modal System ---
         function openModal(type) {
             const modalRoot = document.getElementById("modalRoot");

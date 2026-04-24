@@ -106,6 +106,13 @@
     
     <script>
 
+        const token = localStorage.getItem("token");
+        const API_BASE = "https://honypoterp-production.up.railway.app";
+
+        if (!token) {
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
+        }
+
         function toggleFields() {
             const role = document.getElementById("role")?.value;
 
@@ -364,7 +371,7 @@
                     data.department = document.getElementById("department").value;
                 }
 
-                const res = await fetch("/service/create-user", {
+                const res = await fetch(`${API_BASE}/service/create-user`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -398,7 +405,7 @@
                     data.branch = document.getElementById("edit_department").value;
                 }
 
-                const res = await fetch(`/service/update-user/${id}`, {
+                const res = await fetch(`${API_BASE}/service/update-user/${id}`, {
                     method: "PUT",
                     headers: {
                         "Content-Type": "application/json",
@@ -423,7 +430,7 @@
             return;
         }
 
-        const res = await fetch(`/service/get-user/${id}`, {
+        const res = await fetch(`${API_BASE}/service/get-user/${id}`, {
             headers: {
                 "Authorization": "Bearer " + token
             }

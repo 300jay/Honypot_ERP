@@ -145,6 +145,13 @@
     <div id="toastRoot"></div>
 
     <script>
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        window.location.href = "/signin.html";
+    }
+    
     function parseJwt(token) {
         return JSON.parse(atob(token.split('.')[1]));
     }

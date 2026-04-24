@@ -65,6 +65,12 @@
     </div>
     <div id="modalRoot"></div><div id="toastRoot"></div>
     <script>
+        const token = localStorage.getItem("token");
+
+    if (!token) {
+        window.location.href = "/signin.html";
+    }
+
     async function loadAttendance() {
 
         const res = await fetch("http://localhost:3000/student/attendance", {

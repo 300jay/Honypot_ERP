@@ -135,6 +135,13 @@
     <div id="toastRoot"></div>
     
     <script>
+
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            window.location.href = "/signin.html";
+        }    
         // --- Attendance Logic ---
         // Auto-fill today's date in the date picker
         document.addEventListener("DOMContentLoaded", () => {

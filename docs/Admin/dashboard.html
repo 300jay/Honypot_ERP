@@ -79,7 +79,7 @@
                         <div class="stat-top">
                             <div class="kpi">
                                 <div class="stat-ico">👨‍🎓</div>
-                                <div><p class="stat-label">Students</p><h3 class="stat-value" data-target="1200">1,200</h3></div>
+                                <div><p class="stat-label">Students</p><h3 class="stat-value" data-target="12">12</h3></div>
                             </div>
                         </div>
                         <div class="stat-foot">+18 this month</div>
@@ -88,7 +88,7 @@
                         <div class="stat-top">
                             <div class="kpi">
                                 <div class="stat-ico">👨‍🏫</div>
-                                <div><p class="stat-label">Teachers</p><h3 class="stat-value" data-target="75">75</h3></div>
+                                <div><p class="stat-label">Teachers</p><h3 class="stat-value" data-target="7">7</h3></div>
                             </div>
                         </div>
                         <div class="stat-foot">+4 this month</div>
@@ -169,6 +169,12 @@
     <div id="toastRoot"></div>
 
     <script>
+        const token = localStorage.getItem("token");
+        const API_BASE = "https://honypoterp-production.up.railway.app";
+
+        if (!token) {
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
+        }
 
         function toggleFields() {
             const role = document.getElementById("role")?.value;
@@ -342,7 +348,7 @@
 
             if (!token) {
                 showToast("Error", "Session expired. Please login again.");
-                window.location.href = "/signin.html";
+                window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
                 return;
             }
 
@@ -368,7 +374,7 @@
             console.log(data); 
 
             try {
-                const res = await fetch("/service/create-user", {
+                const res = await fetch(`${API_BASE}/service/create-user`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -396,12 +402,12 @@
             const token = localStorage.getItem("token");
 
             if (!token) {
-                window.location.href = "/signin.html";
+                window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
                 return;
             }
 
             try {
-                await fetch("/logout", {
+                await fetch(`${API_BASE}/logout`, {
                     method: "POST",
                     headers: {
                         "Authorization": "Bearer " + token
@@ -412,8 +418,85 @@
             }
 
             localStorage.removeItem("token");
-            window.location.href = "/signin.html";
+            window.location.href = "https://300jay.github.io/Honypot_ERP/signin.html";
         }
+
+        async function loadTicketQueue() {
+    const token = localStorage.getItem("token");
+
+    try {
+        const res = await fetch(`${API_BASE}/api/tickets/my`, {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        });
+
+        const tickets = await res.json();
+        console.log("TICKET QUEUE:", tickets);
+
+        const tbody = document.getElementById("ticketQueueBody");
+        const countEl = document.getElementById("openTicketCount");
+
+        if (!tbody) return;
+
+        tbody.innerHTML = "";
+
+        if (!Array.isArray(tickets) || tickets.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5">No tickets</td></tr>`;
+            if (countEl) countEl.innerText = "0 open";
+            return;
+        }
+
+        let openCount = 0;
+
+        tickets.forEach(ticket => {
+
+            // Status logic
+            let statusText = "Open";
+            let statusClass = "warn";
+
+            if (ticket.assigned_to) {
+                statusText = "Pending";
+                statusClass = "info";
+            }
+
+            if (ticket.status === "closed") {
+                statusText = "Closed";
+                statusClass = "good";
+            }
+
+            if (statusText === "Open") openCount++;
+
+            // Priority logic
+            let priorityClass = "info";
+            if (ticket.priority === "high") priorityClass = "bad";
+            else if (ticket.priority === "medium") priorityClass = "warn";
+
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+                <td>#T-${ticket.ticket_id}</td>
+                <td>${ticket.subject}</td>
+                <td>${ticket.raised_by || "User"}</td>
+                <td><span class="badge ${priorityClass}">${ticket.priority}</span></td>
+                <td><span class="badge ${statusClass}">${statusText}</span></td>
+            `;
+
+            tbody.appendChild(row);
+        });
+
+        // Update open count
+        if (countEl) {
+            countEl.innerText = openCount + " open";
+        }
+
+    } catch (err) {
+        console.error("Ticket queue error:", err);
+    }
+}
+
+loadTicketQueue();
+
     
 </script>
 </body>

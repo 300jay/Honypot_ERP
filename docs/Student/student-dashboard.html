@@ -6,6 +6,70 @@
     <title>Student Dashboard</title>
     <link rel="stylesheet" href="../style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+    #todayClasses {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 20px;
+    }
+
+    .class-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 22px;
+        border-radius: 16px;
+        background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+        border: 1px solid rgba(255,255,255,0.08);
+        backdrop-filter: blur(10px);
+        transition: all 0.25s ease;
+    }
+
+    .class-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(0, 200, 255, 0.3);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    }
+
+    .class-info h4 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #e6edf3;
+    }
+
+    .class-info p {
+        margin: 6px 0 0;
+        font-size: 14px;
+        color: #9fb3c8;
+    }
+
+    .class-status {
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    /* Soon */
+    .class-status.soon {
+        background: rgba(0, 170, 255, 0.15);
+        color: #3db9ff;
+    }
+
+    /* Later */
+    .class-status.later {
+        background: rgba(255, 200, 0, 0.15);
+        color: #ffcc33;
+    }
+
+    /* Ongoing */
+    .class-status.ongoing {
+        background: rgba(0, 255, 150, 0.15);
+        color: #00ffa6;
+    }
+    </style>
 </head>
 <body data-theme="dark" data-role="admin">
     <div class="bg-orb orb-1"></div><div class="bg-orb orb-2"></div><div class="bg-grid"></div>
@@ -38,9 +102,9 @@
             <section class="toolbar"><div><div class="hint">Viewing <strong>Dashboard</strong> · built for student</div></div></section>
             <section class="content" id="content">
                 <div class="grid-4" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">📊</div><div><p class="stat-label">Attendance</p><h3 class="stat-value" data-target="85">85%</h3></div></div></div><div class="stat-foot">This semester</div></article>
-                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">📈</div><div><p class="stat-label">Average</p><h3 class="stat-value" data-target="88">88</h3></div></div></div><div class="stat-foot">Current score</div></article>
-                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">🗓</div><div><p class="stat-label">Classes Today</p><h3 class="stat-value" data-target="4">4</h3></div></div></div><div class="stat-foot">Upcoming</div></article>
+                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">📊</div><div><p class="stat-label">Attendance</p><h3 class="stat-value" id="attendanceScore">--%</h3></div></div></div><div class="stat-foot">This semester</div></article>
+                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">📈</div><div><p class="stat-label">Average</p><h3 class="stat-value" id="avgScore">--</h3></div></div></div><div class="stat-foot">Current score</div></article>
+                    <article class="stat-card"><div class="stat-top"><div class="kpi"><div class="stat-ico">🗓</div><div><p class="stat-label">Classes Today</p><h3 class="stat-value" id="classesTodayCount">--</h3></div></div></div><div class="stat-foot">Upcoming</div></article>
                 </div>
                 <div class="grid-2" style="margin-top: 18px;">
                     <section class="panel">
@@ -52,11 +116,7 @@
                     </section>
                     <section class="panel">
                         <div class="panel-head"><div><h3 class="panel-title">Upcoming Classes</h3><p class="panel-sub">Today's schedule preview.</p></div></div>
-                        <div class="list">
-                            <div class="list-item"><div><strong>Math</strong><p>09:00 AM — Room 12</p></div><span class="badge info">Soon</span></div>
-                            <div class="list-item"><div><strong>Science</strong><p>11:00 AM — Lab 3</p></div><span class="badge info">Soon</span></div>
-                            <div class="list-item"><div><strong>DBMS</strong><p>01:00 PM — Hall A</p></div><span class="badge warn">Later</span></div>
-                        </div>
+                        <div id="todayClasses"></div>
                     </section>
                 </div>
             </section>
@@ -65,11 +125,190 @@
     <div id="modalRoot"></div><div id="toastRoot"></div>
     <script src="student-scripts.js"></script>
     <script>
-    const token = localStorage.getItem("token");
+        const token = localStorage.getItem("token");
 
     if (!token) {
         window.location.href = "/signin.html";
     }
-</script>
+    async function loadTodayClasses() {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch("http://localhost:3000/timetable/student", {
+            headers: {
+                Authorization: "Bearer " + token
+            }
+        });
+
+        let data = await res.json();
+
+        // Normalize day names
+        data.forEach(d => {
+            d.day_of_week =
+                d.day_of_week.charAt(0).toUpperCase() +
+                d.day_of_week.slice(1).toLowerCase();
+        });
+
+        // Get today's day
+        const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+
+        // Filter today's classes
+        let todayData = data.filter(d => d.day_of_week === today);
+
+        // Remove duplicates
+        const uniqueMap = new Map();
+        todayData.forEach(d => {
+            const key = d.day_of_week + d.start_time + d.course_name;
+            uniqueMap.set(key, d);
+        });
+        todayData = Array.from(uniqueMap.values());
+
+        // Sort by start time
+        todayData.sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+        //  Update "Classes Today" count
+        const count = todayData.length;
+        const countEl = document.getElementById("classesTodayCount");
+        if (countEl) {
+            countEl.innerText = count;
+            countEl.setAttribute("data-target", count);
+        }
+
+        const now = new Date();
+
+        // Assign status
+        todayData.forEach(cls => {
+            const [sh, sm] = cls.start_time.split(":");
+            const [eh, em] = cls.end_time.split(":");
+
+            const start = new Date();
+            start.setHours(sh, sm, 0);
+
+            const end = new Date();
+            end.setHours(eh, em, 0);
+
+            let label = "Later";
+
+            if (now >= start && now <= end) {
+                label = "Ongoing";
+            } else if (start > now && (start - now) <= 3600000) {
+                label = "Soon";
+            }
+
+            cls.status = label;
+        });
+
+        const container = document.getElementById("todayClasses");
+        container.innerHTML = "";
+
+        // If no classes
+        if (todayData.length === 0) {
+            container.innerHTML = "<p>No classes today</p>";
+            return;
+        }
+
+        // Render cards
+        todayData.forEach(cls => {
+            const card = document.createElement("div");
+            card.className = "class-card";
+
+            card.innerHTML = `
+                <div class="class-info">
+                    <h4>${cls.course_name}</h4>
+                    <p>${cls.start_time} — ${cls.room_no}</p>
+                </div>
+                <div class="class-status ${cls.status.toLowerCase()}">
+                    ${cls.status}
+                </div>
+            `;
+
+            container.appendChild(card);
+        });
+    }
+
+    loadTodayClasses();
+
+    async function loadResultAverage() {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch("http://localhost:3000/student/results", {
+            headers: {
+                Authorization: "Bearer " + token
+            }
+        });
+
+        const data = await res.json();
+        console.log("RESULT DATA:", data);
+
+        // Safety
+        if (!Array.isArray(data) || data.length === 0) return;
+
+        // Calculate percentage average
+        let total = 0;
+
+        data.forEach(r => {
+            const percent = (r.marks_obtained / r.max_marks) * 100;
+            total += percent;
+        });
+
+        const avg = Math.round(total / data.length);
+
+        // 1. Update "Current score" (Average card)
+        const statValues = document.querySelectorAll(".stat-value");
+
+        // index 1 = Average card
+        statValues[1].innerText = avg;
+        statValues[1].setAttribute("data-target", avg);
+
+        // 2. Update Result Avg progress bar
+        const progressBars = document.querySelectorAll(".progress span");
+        progressBars[1].style.width = avg + "%";
+
+        const progressLabels = document.querySelectorAll(".panel-sub span:last-child");
+        progressLabels[1].innerText = avg + "%";
+    }
+
+    loadResultAverage();
+
+    async function updateAttendanceDashboard() {
+    const res = await fetch("http://localhost:3000/student/attendance", {
+        headers: {
+            "Authorization": "Bearer " + localStorage.getItem("token")
+        }
+    });
+
+    const data = await res.json();
+
+    if (!Array.isArray(data) || data.length === 0) return;
+
+    let totalPresent = 0;
+    let totalClasses = 0;
+
+    for (let r of data) {
+        totalClasses++;
+        if (r.status === "present") totalPresent++;
+    }
+
+    const percent = Math.round((totalPresent / totalClasses) * 100);
+
+    //  Direct update (this replaces your 85%)
+    const el = document.getElementById("attendanceScore");
+    el.innerText = percent + "%";
+    el.setAttribute("data-target", percent);
+
+    // Update ring
+    const ring = document.querySelector(".ring");
+    ring.style.setProperty("--p", percent);
+    document.querySelector(".ring-content strong").innerText = percent + "%";
+
+    // Update progress bar
+    const progressBars = document.querySelectorAll(".progress span");
+    progressBars[0].style.width = percent + "%";
+
+    const progressLabels = document.querySelectorAll(".panel-sub span:last-child");
+    progressLabels[0].innerText = percent + "%";
+}
+
+updateAttendanceDashboard();
+    </script>
 </body>
 </html>
