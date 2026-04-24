@@ -1,9 +1,10 @@
 const mysql = require("mysql2/promise");
 
 const db = mysql.createPool({
-    host: "nozomi.proxy.rlwy.net",
-    user: "root",
-    password: "qAIglKdeJlQtzvXDNJpzLLYoVaJPsqZz",
+    host: process.env.MYSQLHOST,
+    port: process.env.MYSQLPORT || 3306,
+    user: process.env.MYSQLUSER,
+    password: process.env.MYSQLPASSWORD,
     database: "og"
 });
 
