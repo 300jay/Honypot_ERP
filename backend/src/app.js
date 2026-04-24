@@ -3,7 +3,7 @@ const express = require("express");
 const app = express();
 const path = require("path");
 
-const frontendPath = path.resolve(__dirname, "../../Frontend");
+// const frontendPath = path.resolve(__dirname, "../../Frontend");
 console.log("Frontend path:", frontendPath);
 
 app.use(express.static(frontendPath));
@@ -13,7 +13,7 @@ app.use(cors());
 const bcrypt = require("bcrypt");
 const db = require("./db");
 const jwt = require("jsonwebtoken");
-const authHeader = req.headers.authorization;
+// const authHeader = req.headers.authorization;
 // module.exports = (req, res, next) => {
 //     
 
