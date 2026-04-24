@@ -699,10 +699,11 @@ app.post("/logout", authMiddleware, logRequest("LOGOUT"), async (req, res) =>{
         res.json({message:"Logout failed"});
     }
 });
-app.listen(3000,() => {
-    console.log("Server has started on port 3000");
-});
+const PORT = process.env.PORT || 3000;
 
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
 
 app.put("/service/update-user/:id", authMiddleware, requireRole("admin"), async (req, res) => {
     const accountId = req.params.id;
