@@ -13,25 +13,26 @@ app.use(cors());
 const bcrypt = require("bcrypt");
 const db = require("./db");
 const jwt = require("jsonwebtoken");
-module.exports = (req, res, next) => {
-    const authHeader = req.headers.authorization;
+const authHeader = req.headers.authorization;
+// module.exports = (req, res, next) => {
+//     
 
-    if (!authHeader) {
-        return res.json({ message: "Unauthorized" });
-    }
+//     if (!authHeader) {
+//         return res.json({ message: "Unauthorized" });
+//     }
 
-    const token = authHeader.split(" ")[1];
+//     const token = authHeader.split(" ")[1];
 
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+//     try {
+//         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        req.user = decoded;
-        next();
-    } catch (err) {
-        console.error("JWT ERROR:", err.message);
-        return res.json({ message: "Invalid token" });
-    }
-};
+//         req.user = decoded;
+//         next();
+//     } catch (err) {
+//         console.error("JWT ERROR:", err.message);
+//         return res.json({ message: "Invalid token" });
+//     }
+// };
 require("dotenv").config();
 
 const SECRET_KEY = process.env.JWT_SECRET;
@@ -701,7 +702,7 @@ app.post("/logout", authMiddleware, logRequest("LOGOUT"), async (req, res) =>{
 });
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
 });
 
