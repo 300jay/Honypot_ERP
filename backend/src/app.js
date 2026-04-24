@@ -4,10 +4,10 @@ const app = express();
 const path = require("path");
 const timetableRoutes = require("./routes/timetableRoutes");
 
-const frontendPath = path.resolve(__dirname, "../../Frontend");
-console.log("Frontend path:", frontendPath);
+// const frontendPath = path.resolve(__dirname, "../../Frontend");
+// console.log("Frontend path:", frontendPath);
 
-app.use(express.static(frontendPath));
+// app.use(express.static(frontendPath));
 const cors = require("cors");   
 app.use(cors()); 
 
@@ -29,26 +29,26 @@ function isSuspicious(input) {
         input.includes("'")
     );
 }
+// const authHeader = req.headers.authorization;
+// module.exports = (req, res, next) => {
+//     
 
-module.exports = (req, res, next) => {
-    const authHeader = req.headers.authorization;
+//     if (!authHeader) {
+//         return res.json({ message: "Unauthorized" });
+//     }
 
-    if (!authHeader) {
-        return res.json({ message: "Unauthorized" });
-    }
+//     const token = authHeader.split(" ")[1];
 
-    const token = authHeader.split(" ")[1];
+//     try {
+//         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        req.user = decoded;
-        next();
-    } catch (err) {
-        console.error("JWT ERROR:", err.message);
-        return res.json({ message: "Invalid token" });
-    }
-};
+//         req.user = decoded;
+//         next();
+//     } catch (err) {
+//         console.error("JWT ERROR:", err.message);
+//         return res.json({ message: "Invalid token" });
+//     }
+// };
 require("dotenv").config();
 
 const SECRET_KEY = process.env.JWT_SECRET;
@@ -867,8 +867,10 @@ app.post("/logout", authMiddleware, logRequest("LOGOUT"), async (req, res) =>{
         res.json({message:"Logout failed"});
     }
 });
-app.listen(3000,() => {
-    console.log("Server has started on port 3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT}`);
 });
 
 
