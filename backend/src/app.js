@@ -1,6 +1,7 @@
 const rateLimit = require("express-rate-limit");
 const express = require("express");
 const app = express();
+app.set("trust proxy", true);
 const path = require("path");
 const timetableRoutes = require("./routes/timetableRoutes");
 
@@ -28,6 +29,9 @@ function isSuspicious(input) {
         input.includes("select") ||
         input.includes("'")
     );
+}
+function getClientIP(req) {
+    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
 }
 // const authHeader = req.headers.authorization;
 // module.exports = (req, res, next) => {
@@ -89,7 +93,7 @@ const accountLimiter = async (req, res, next) => {
     if(attempt.count>maxAttempts){
         logActivity(db, {
             activity: "BRUTE_FORCE_DETECTED",
-            ip_address: req.ip,
+            ip_address: getClientIP(req),
             result: "BLOCKED",
             source:"SECURITY"
         });
@@ -108,7 +112,7 @@ const logRequest = (activityName) => {
             logActivity(db, {
                 account_id: req.user?.id || null,
                 activity: activityName,
-                ip_address: req.ip,
+                ip_address: getClientIP(req),
                 session_id: req.user?.session_id || null,
                 result: msg.includes("error") ||
                         msg.includes("invalid") ||
@@ -126,7 +130,7 @@ const logRequest = (activityName) => {
 };
 
 async function logHoneypotEvent(req, eventType, details){
-    const ip = req.ip;
+    const ip = getClientIP(req);
     const userId = req.user ? req.user.id : null;
     const activity = `[${eventType}] ${details}`;
 
@@ -672,7 +676,7 @@ app.post("/admin/register", async (req,res)=>{
 
         logActivity(db,{
             activity: "HONEYPOT_ACCOUNT_CREATION",
-            ip_address: req.ip,
+            ip_address: getClientIP(req),
             result: "CAPTURED",
             source:"HONEYPOT"
         });
@@ -721,7 +725,7 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
     );
 
     try {
-        const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
+        const ip = getClientIP(req) || req.headers["x-forwarded-for"] || "unknown";
 
         await db.execute(`
             INSERT INTO activity_logs 
@@ -749,7 +753,7 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
         if(!email || !password){
             logActivity(db, {
                 activity: "LOGIN_ATTEMPT",
-                ip_address: req.ip,
+                ip_address: getClientIP(req),
                 result: "FAILED",
                 source: "AUTH"
             });
@@ -758,7 +762,7 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
         if(!isEmail(email) || password.length<6){
             logActivity(db, {
                 activity: "LOGIN_ATTEMPT",
-                ip_address: req.ip,
+                ip_address: getClientIP(req),
                 result: "FAILED",
                 source: "AUTH"
             });
@@ -777,7 +781,7 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
         if (results.length==0){
             logActivity(db, {
                 activity: "LOGIN_ATTEMPT",
-                ip_address: req.ip,
+                ip_address: getClientIP(req),
                 result: "FAILED",
                 source: "AUTH"
             });
@@ -793,7 +797,7 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
         if(!isMatch){
             logActivity(db, {
                 activity: "LOGIN_ATTEMPT",
-                ip_address: req.ip,
+                ip_address: getClientIP(req),
                 result: "FAILED",
                 source: "AUTH"
             });
@@ -802,7 +806,7 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
 
         delete loginAttempts[email];
 
-        const ip = req.ip;
+        const ip = getClientIP(req);
 
         const [result2] = await db.execute(
             'INSERT INTO admin.session_tracker(account_id, ip_address) VALUES (?,?)',
@@ -821,7 +825,7 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
                 id: user.account_id,
                 email: user.email,
                 session_id: sessionId,
-                role: user.role_name   // 🔥 ADD THIS
+                role: user.role_name   
             },
             SECRET_KEY,
             {expiresIn:"1h"}
@@ -830,7 +834,7 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
         logActivity(db, {
             account_id: user.account_id,
             activity: "LOGIN_SUCCESS",
-            ip_address: req.ip,
+            ip_address: getClientIP(req),
             session_id: sessionId,
             result: "SUCCESS",
             source: "AUTH"
@@ -839,14 +843,14 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
         res.json({
             message: "Login working",
             token,
-            role: user.role_name   // 🔥 ADD THIS
+            role: user.role_name   
         });
 
     }catch(err){
         console.error(err);
         logActivity(db, {
             activity: "LOGIN_ATTEMPT",
-            ip_address: req.ip,
+            ip_address: getClientIP(req),
             result: "FAILED",
             source: "AUTH"
         });
@@ -874,7 +878,7 @@ app.listen(PORT, "0.0.0.0", () => {
 });
 
 
-app.put("/service/update-user/:id", authMiddleware, requireRole("admin"), async (req, res) => {
+app.put("/service/update-user/:id", authMiddleware, requireRole("admin"),logRequest("UPDATE_USER"), async (req, res) => {
     const accountId = req.params.id;
 
     let { full_name, email, role, department, branch } = req.body;
@@ -923,7 +927,7 @@ app.put("/service/update-user/:id", authMiddleware, requireRole("admin"), async 
     }
 });
 
-app.get("/service/get-user/:id", authMiddleware, requireRole("admin"), async (req, res) => {
+app.get("/service/get-user/:id", authMiddleware, requireRole("admin"),logRequest("GET_USER"), async (req, res) => {
     const id = req.params.id;
 
     try {
@@ -957,7 +961,7 @@ app.get("/service/get-user/:id", authMiddleware, requireRole("admin"), async (re
     }
 });
 
-app.get("/teacher/students/:offering_id", authMiddleware, requireRole("teacher"), async (req, res) => {
+app.get("/teacher/students/:offering_id", authMiddleware, requireRole("teacher"), logRequest("VIEW_STUDENTS"), async (req, res) => {
     const offering_id = req.params.offering_id;
 
     try {
@@ -979,7 +983,7 @@ app.get("/teacher/students/:offering_id", authMiddleware, requireRole("teacher")
     }
 });
 
-app.get("/teacher/offerings", authMiddleware, requireRole("teacher"), async (req, res) => {
+app.get("/teacher/offerings", authMiddleware, requireRole("teacher"),logRequest("VIEW_OFFERINGS"), async (req, res) => {
     try {
         const [teacherRes] = await db.execute(
             'SELECT teacher_id FROM og.teacher_profiles WHERE account_id = ?',
@@ -1009,7 +1013,7 @@ app.get("/teacher/offerings", authMiddleware, requireRole("teacher"), async (req
     }
 });
 
-app.get("/teacher/results/:offering_id", authMiddleware, requireRole("teacher"), async (req, res) => {
+app.get("/teacher/results/:offering_id", authMiddleware, requireRole("teacher"),logRequest("VIEW_RESULTS_TEACHER"), async (req, res) => {
     try {
         const offering_id = req.params.offering_id;
 
@@ -1041,6 +1045,7 @@ app.get("/teacher/results/:offering_id", authMiddleware, requireRole("teacher"),
 app.get("/teacher/attendance/:offering_id/:date",
 authMiddleware,
 requireRole("teacher"),
+logRequest("VIEW_ATTENDANCE_TEACHER"),
 async (req, res) => {
     try {
         const { offering_id, date } = req.params;
@@ -1070,7 +1075,7 @@ async (req, res) => {
     }
 });
 
-app.get("/teacher/timetable", authMiddleware, requireRole("teacher"), async (req, res) => {
+app.get("/teacher/timetable", authMiddleware, requireRole("teacher"), logRequest("VIEW_TIMETABLE"), async (req, res) => {
     try {
         const [rows] = await db.execute(`
             SELECT 
