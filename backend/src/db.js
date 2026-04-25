@@ -11,4 +11,10 @@ const db = mysql.createPool({
     queueLimit: 0
 });
 
+//server currently US time zone
+pool.getConnection().then(conn => {
+    conn.execute("SET time_zone = '+05:30'");
+    conn.release();
+});
+
 module.exports = db;
