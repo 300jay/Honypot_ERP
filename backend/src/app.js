@@ -768,6 +768,29 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
             });
             return res.json({message: "Invalid credentials"});
         }
+       // Check fake users
+        const [fakeUsers] = await db.execute(
+            `SELECT * FROM users.accounts WHERE email = ?`,
+            [email]
+        );
+
+        if (fakeUsers.length > 0) {
+
+        
+
+        const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
+
+
+
+        await logHoneypotEvent(req, "HONEYPOT_LOGIN", `Email: ${email}`);
+
+        return res.json({
+            message: "Login successful",
+            token: "fake-token",
+            role: "admin",
+            redirect: "/Users/dashboard.html"
+        });
+    }
 
         const [results] = await db.execute(
             `SELECT a.account_id, a.email, a.password_hash, r.role_name
