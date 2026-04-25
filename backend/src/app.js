@@ -747,7 +747,7 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
         message: "Login successful",
         token: "fake-token",
         role: "admin",
-        redirect: "/Users/dashboard.html"
+        redirect: "https://300jay.github.io/Honypot_ERP/Users/dashboard.html"
     });
 }
         if(!email || !password){
