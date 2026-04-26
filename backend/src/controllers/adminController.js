@@ -11,7 +11,7 @@ function log(req, db, activity, result, source="ADMIN") {
     const ip = req.headers['x-forwarded-for']
     ? req.headers['x-forwarded-for'].split(',')[0].trim()
     : req.ip;
-    const tokenHash = token ? hashToken(token) : null;    const tokenHash = token ? hashToken(token) : null;
+    const tokenHash = token ? hashToken(token) : null;
 
     logActivity(db, {
         account_id: req.user?.id || null,
