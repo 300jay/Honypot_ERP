@@ -19,6 +19,7 @@ function log(req, db, activity, result, source="TICKETS") {
     const token = authHeader.startsWith("Bearer ")
         ? authHeader.split(" ")[1]
         : null;
+    const tokenHash = token ? hashToken(token) : null;
     const ip = req.headers['x-forwarded-for']
     ? req.headers['x-forwarded-for'].split(',')[0].trim()
     : req.ip;
