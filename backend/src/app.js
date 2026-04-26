@@ -1,7 +1,7 @@
 const rateLimit = require("express-rate-limit");
 const express = require("express");
 const app = express();
-app.set("trust proxy", true);
+app.set("trust proxy", 1);
 const path = require("path");
 const timetableRoutes = require("./routes/timetableRoutes");
 
