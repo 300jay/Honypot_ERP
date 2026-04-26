@@ -1,5 +1,6 @@
 const db = require("../db");
 const { logActivity } = require("../logger");
+const crypto = require("crypto");
 
 // Honeypot logger
 const logDecoyEvent = async (userId, type, ip) => {
