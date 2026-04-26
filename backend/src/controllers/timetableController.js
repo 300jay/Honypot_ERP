@@ -1,6 +1,7 @@
 const validDays = ["Monday", "Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const db = require("../db");
 const { logActivity } = require("../logger"); 
+const crypto = require("crypto");
 
 function isValidDay(day){
     return validDays.includes(day);
