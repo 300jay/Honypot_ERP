@@ -1,5 +1,7 @@
 const db = require("../db")
 const { logActivity } = require("../logger");
+const crypto = require("crypto");
+
 
 function log(req, db, activity, result, source="ADMIN") {
     const token = req.headers.authorization?.split(" ")[1];
