@@ -1,6 +1,6 @@
 const db = require("../db");
 const { logActivity } = require("../logger");
-const crypto = require("crypto");
+const { hashToken } = require("../utils/hash");
 
 // Honeypot logger
 const logDecoyEvent = async (userId, type, ip) => {
@@ -15,13 +15,18 @@ const logDecoyEvent = async (userId, type, ip) => {
 };
 
 function log(req, db, activity, result, source="TICKETS") {
-    const token = req.headers.authorization?.split(" ")[1];
-    const tokenHash = token ? hashToken(token) : null;
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ")
+        ? authHeader.split(" ")[1]
+        : null;
+    const ip = req.headers['x-forwarded-for']
+    ? req.headers['x-forwarded-for'].split(',')[0].trim()
+    : req.ip;
 
     logActivity(db, {
         account_id: req.user?.id || null,
         activity,
-        ip_address: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+        ip_address: ip,
         session_id: req.user?.session_id || null,
         result,
         source,
