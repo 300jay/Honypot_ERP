@@ -13,8 +13,10 @@ const cors = require("cors");
 app.use(cors()); 
 
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const db = require("./db");
 const jwt = require("jsonwebtoken");
+
 
 function isSuspicious(input) {
     if (!input) return false;
@@ -29,6 +31,9 @@ function isSuspicious(input) {
         input.includes("select") ||
         input.includes("'")
     );
+}
+function hashToken(token) {
+    return crypto.createHash("sha256").update(token).digest("hex");
 }
 function getClientIP(req) {
     return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
@@ -67,6 +72,7 @@ const adminRoutes = require("./routes/adminRoutes");
 
 const authMiddleware= require("./middleware/authMiddleware");
 const requireRole = require("./middleware/roleMiddleware");
+const securityMiddleware = require("./middleware/securityMiddleware");
 const {logActivity} = require("./logger");
 const loginLimiter = rateLimit({
     windowMs: 15*60*1000,
@@ -79,6 +85,8 @@ const accountLimiter = async (req, res, next) => {
     const now = Date.now();
     const windowMs = 15*60*1000;
     const maxAttempts = 5;
+    const token = req.headers.authorization?.split(" ")[1];
+    const tokenHash = token ? hashToken(token) : null;
 
     if(!loginAttempts[email]){
         loginAttempts[email] = {count: 1, firstAttempt: now};
@@ -95,7 +103,8 @@ const accountLimiter = async (req, res, next) => {
             activity: "BRUTE_FORCE_DETECTED",
             ip_address: getClientIP(req),
             result: "BLOCKED",
-            source:"SECURITY"
+            source:"SECURITY",
+            token_hash: tokenHash
         });
         return res.json({ message: "Too many login attempts, Try again later"});
     }
@@ -105,6 +114,8 @@ const accountLimiter = async (req, res, next) => {
 const logRequest = (activityName) => {
     return (req, res, next) => {
         const originalSend = res.json;
+        const token = req.headers.authorization?.split(" ")[1];
+        const tokenHash = token ? hashToken(token) : null;
 
         res.json = function (body){
             const msg = (body?.message || "").toLowerCase();
@@ -119,7 +130,8 @@ const logRequest = (activityName) => {
                         msg.includes("unauthorized")
                         ? "FAILED"
                         : "SUCCESS",
-                source: "ACTIVITY"
+                source: "ACTIVITY",
+                token_hash: tokenHash
             })
 
             return originalSend.call(this, body);
@@ -144,6 +156,7 @@ async function logHoneypotEvent(req, eventType, details){
     }
 }
 app.use(express.json());
+app.use(securityMiddleware);
 app.use("/manage",adminRoutes);
 
 app.get("/",(req,res) => {
@@ -649,7 +662,8 @@ app.get("/debug/env", (req,res)=>{
 app.post("/admin/register", async (req,res)=>{
     const {email, password} = req.body;
 
-
+    const token = req.headers.authorization?.split(" ")[1];
+    const tokenHash = token ? hashToken(token) : null;
 
     //  STEP 2: normal validation
     if(!email || !password){
@@ -678,7 +692,8 @@ app.post("/admin/register", async (req,res)=>{
             activity: "HONEYPOT_ACCOUNT_CREATION",
             ip_address: getClientIP(req),
             result: "CAPTURED",
-            source:"HONEYPOT"
+            source:"HONEYPOT",
+            token_hash: tokenHash
         });
 
         return res.json({
@@ -714,61 +729,67 @@ app.get("/internal/file-access", (req, res) => {
 app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
     try{
         const {email, password} = req.body;
+        const incomingToken = req.headers.authorization?.split(" ")[1];
+        const incomingTokenHash = incomingToken ? hashToken(incomingToken) : null;
 
-        //  Honeypot FIRST (before any validation)
         if (isSuspicious(email) || isSuspicious(password)) {
 
-    console.log("HONEYPOT TRIGGERED");
+            console.log("HONEYPOT TRIGGERED");
 
-    await logHoneypotEvent(req, "LOGIN_BYPASS_ATTEMPT", 
-        `Payload: ${email} | ${password}`
-    );
+            await logHoneypotEvent(req, "LOGIN_BYPASS_ATTEMPT", 
+                `Payload: ${email} | ${password}`
+            );
 
-    try {
-        const ip = getClientIP(req) || req.headers["x-forwarded-for"] || "unknown";
+            try {
+                const ip = getClientIP(req) || req.headers["x-forwarded-for"] || "unknown";
 
-        await db.execute(`
-            INSERT INTO activity_logs 
-            (account_id, activity, ip_address, result, source)
-            VALUES (?, ?, ?, ?, ?)
-        `, [
-            null,
-            `Suspicious login attempt (honeypot) using email: ${email}`,
-            ip,
-            "blocked",
-            "auth"
-        ]);
+                await db.execute(`
+                    INSERT INTO admin.activity_logs 
+                    (account_id, activity, ip_address, result, source, token_hash)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `, [
+                    null,
+                    `Suspicious login attempt (honeypot) using email: ${email}`,
+                    ip,
+                    "blocked",
+                    "auth",
+                    incomingTokenHash
+                ]);
 
-    } catch (err) {
-        console.error("Activity log error:", err);
-    }
+            } catch (err) {
+                console.error("Activity log error:", err);
+            }
 
-    return res.json({
-        message: "Login successful",
-        token: "fake-token",
-        role: "admin",
-        redirect: "https://300jay.github.io/Honypot_ERP/Users/dashboard.html"
-    });
-}
+            return res.json({
+                message: "Login successful",
+                token: "fake-token",
+                role: "admin",
+                redirect: "https://300jay.github.io/Honypot_ERP/Users/dashboard.html"
+            });
+        }
+
         if(!email || !password){
             logActivity(db, {
                 activity: "LOGIN_ATTEMPT",
                 ip_address: getClientIP(req),
                 result: "FAILED",
-                source: "AUTH"
+                source: "AUTH",
+                token_hash: incomingTokenHash
             });
             return res.json({message: "Invalid credentials"});
         }
+
         if(!isEmail(email) || password.length<6){
             logActivity(db, {
                 activity: "LOGIN_ATTEMPT",
                 ip_address: getClientIP(req),
                 result: "FAILED",
-                source: "AUTH"
+                source: "AUTH",
+                token_hash: incomingTokenHash
             });
             return res.json({message: "Invalid credentials"});
         }
-       // Check fake users
+
         const [fakeUsers] = await db.execute(
             `SELECT * FROM users.accounts WHERE email = ?`,
             [email]
@@ -776,21 +797,15 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
 
         if (fakeUsers.length > 0) {
 
-        
+            await logHoneypotEvent(req, "HONEYPOT_LOGIN", `Email: ${email}`);
 
-        const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
-
-
-
-        await logHoneypotEvent(req, "HONEYPOT_LOGIN", `Email: ${email}`);
-
-        return res.json({
-            message: "Login successful",
-            token: "fake-token",
-            role: "admin",
-            redirect: "/Users/dashboard.html"
-        });
-    }
+            return res.json({
+                message: "Login successful",
+                token: "fake-token",
+                role: "admin",
+                redirect: "/Users/dashboard.html"
+            });
+        }
 
         const [results] = await db.execute(
             `SELECT a.account_id, a.email, a.password_hash, r.role_name
@@ -806,9 +821,10 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
                 activity: "LOGIN_ATTEMPT",
                 ip_address: getClientIP(req),
                 result: "FAILED",
-                source: "AUTH"
+                source: "AUTH",
+                token_hash: incomingTokenHash
             });
-            // Optional: trap enumeration attempts
+
             await logHoneypotEvent(req, "ENUMERATION_ATTEMPT", `Email: ${email}`);
 
             return res.json({message: "Invalid credentials"});
@@ -822,7 +838,8 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
                 activity: "LOGIN_ATTEMPT",
                 ip_address: getClientIP(req),
                 result: "FAILED",
-                source: "AUTH"
+                source: "AUTH",
+                token_hash: incomingTokenHash
             });
             return res.json({message: "Invalid Credentials"});
         }
@@ -831,17 +848,12 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
 
         const ip = getClientIP(req);
 
-        const [result2] = await db.execute(
+        const [sessionRes] = await db.execute(
             'INSERT INTO admin.session_tracker(account_id, ip_address) VALUES (?,?)',
             [user.account_id, ip]
         );
 
-        const sessionId = result2.insertId;
-
-        await db.execute(
-            'UPDATE og.accounts SET last_login = CURRENT_TIMESTAMP WHERE account_id =?',
-            [user.account_id]
-        );
+        const sessionId = sessionRes.insertId;
 
         const token = jwt.sign(
             {   
@@ -854,13 +866,26 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
             {expiresIn:"1h"}
         ); 
 
+        const tokenHash = hashToken(token);
+
+        await db.execute(
+            'UPDATE admin.session_tracker SET token_hash=? WHERE session_id=?',
+            [tokenHash, sessionId]
+        );
+
+        await db.execute(
+            'UPDATE og.accounts SET last_login = CURRENT_TIMESTAMP WHERE account_id =?',
+            [user.account_id]
+        );
+
         logActivity(db, {
             account_id: user.account_id,
             activity: "LOGIN_SUCCESS",
             ip_address: getClientIP(req),
             session_id: sessionId,
             result: "SUCCESS",
-            source: "AUTH"
+            source: "AUTH",
+            token_hash: tokenHash
         });
 
         res.json({
@@ -875,18 +900,21 @@ app.post("/login", loginLimiter, accountLimiter, async (req,res)=>{
             activity: "LOGIN_ATTEMPT",
             ip_address: getClientIP(req),
             result: "FAILED",
-            source: "AUTH"
+            source: "AUTH",
+            token_hash: null
         });
         res.json({message: "Database Error"});
     }
 });
 app.post("/logout", authMiddleware, logRequest("LOGOUT"), async (req, res) =>{
     try{
-        const sessionId = req.user.session_id;
+        // const sessionId = req.user.session_id;
+        const token = req.headers.authorization?.split(" ")[1];
+        const tokenHash = hashToken(token);
 
         await db.execute(
-            'UPDATE admin.session_tracker SET logout_time = CURRENT_TIMESTAMP WHERE session_id = ?',
-            [sessionId]
+            'UPDATE admin.session_tracker SET logout_time = CURRENT_TIMESTAMP WHERE token_hash = ?',
+            [tokenHash]
         );
 
         res.json({message: "Logged out successfully"});

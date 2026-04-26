@@ -6,15 +6,19 @@ function isValidDay(day){
     return validDays.includes(day);
 }
 function log(req, db, activity, result, source="TIMETABLE") {
+    const token = req.headers.authorization?.split(" ")[1];
+    const tokenHash = token ? hashToken(token) : null;
+
     logActivity(db, {
         account_id: req.user?.id || null,
         activity,
-        ip_address: req.headers['x-forwarded-for'] || req.ip,
+        ip_address: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+        session_id: req.user?.session_id || null,
         result,
-        source
+        source,
+        token_hash: tokenHash
     });
-}
-exports.createTimetable = async(req,res) =>{
+}exports.createTimetable = async(req,res) =>{
     try{
         const {offering_id, day_of_week, start_time, end_time, room_no} = req.body;
         const account_id = req.user.id;

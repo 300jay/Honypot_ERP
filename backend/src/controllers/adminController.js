@@ -2,15 +2,19 @@ const db = require("../db")
 const { logActivity } = require("../logger");
 
 function log(req, db, activity, result, source="ADMIN") {
+    const token = req.headers.authorization?.split(" ")[1];
+    const tokenHash = token ? hashToken(token) : null;
+
     logActivity(db, {
         account_id: req.user?.id || null,
         activity,
-        ip_address: req.headers['x-forwarded-for'] || req.ip,
+        ip_address: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+        session_id: req.user?.session_id || null,
         result,
-        source
+        source,
+        token_hash: tokenHash
     });
 }
-
 exports.getDashboardStats = async (req, res)=>{
     try{
         const [students] = await db.execute(
