@@ -1,19 +1,25 @@
 const validDays = ["Monday", "Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const db = require("../db");
 const { logActivity } = require("../logger"); 
-const crypto = require("crypto");
+const { hashToken } = require("../utils/hash");
 
 function isValidDay(day){
     return validDays.includes(day);
 }
 function log(req, db, activity, result, source="TIMETABLE") {
-    const token = req.headers.authorization?.split(" ")[1];
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ")
+        ? authHeader.split(" ")[1]
+        : null;
     const tokenHash = token ? hashToken(token) : null;
-
+    const ip = req.headers['x-forwarded-for']
+    ? req.headers['x-forwarded-for'].split(',')[0].trim()
+    : req.ip;
+    
     logActivity(db, {
         account_id: req.user?.id || null,
         activity,
-        ip_address: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+        ip_address: ip,
         session_id: req.user?.session_id || null,
         result,
         source,
